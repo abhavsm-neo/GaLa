@@ -1,3 +1,4 @@
+import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -14,7 +15,7 @@ import { Stats } from './pages/Stats';
 import { useEngine } from './useEngine';
 import { useLibrary } from './useLibrary';
 
-const PAGES = ['Home', 'Catalogue', 'Library', 'Downloads', 'Stats'];
+const PAGES = ['Home', 'Library', 'Downloads', 'Stats'];
 type Route = { page: string; game?: number };
 
 function NowPlaying({ name, startedAt, onOpen, onStop }: { name: string; startedAt: number; onOpen: () => void; onStop: () => void }) {
@@ -60,7 +61,7 @@ export function App() {
   const [back, setBack] = useState<Route[]>([]);
   const [forward, setForward] = useState<Route[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [adding, setAdding] = useState<{ file: string } | null>(null);
+  const [adding, setAdding] = useState<{ file: string; magnet?: string } | null>(null);
   const [removing, setRemoving] = useState<Torrent | null>(null);
   const [message, setMessage] = useState('');
   const toastTimer = useRef(0);
@@ -119,6 +120,17 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    const collect = async () => {
+      const item = await api.takeOpened();
+      if (!item) return;
+      setAdding(item.toLowerCase().startsWith('magnet:') ? { file: '', magnet: item } : { file: item });
+    };
+    collect();
+    const stop = listen('torrent-opened', collect);
+    return () => void stop.then(fn => fn());
+  }, []);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key.toLowerCase() === 'q') api.quit();
     };
@@ -168,7 +180,6 @@ export function App() {
             onInstall={folder => settings && setSettings({ ...settings, install_dir: folder })}
           />
         )}
-        {page === 'Catalogue' && <div className="empty"><h2>Catalogue</h2><p>This page isn't built yet.</p></div>}
         {page === 'Downloads' && settings && (
           <Downloads
             torrents={torrents}
@@ -203,9 +214,10 @@ export function App() {
 
       {adding && settings && (
         <AddDialog
-          key={adding.file}
+          key={adding.file + adding.magnet}
           settings={settings}
           initialFile={adding.file}
+          initialMagnet={adding.magnet ?? ''}
           onClose={() => setAdding(null)}
           onAdded={next => { setSettings(next); setAdding(null); setPage('Downloads'); toast('Added to downloads'); }}
         />

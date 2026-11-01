@@ -5,13 +5,14 @@ import { api, type Settings } from '../api';
 type Props = {
   settings: Settings;
   initialFile: string;
+  initialMagnet: string;
   onClose: () => void;
   onAdded: (settings: Settings) => void;
 };
 
-export function AddDialog({ settings, initialFile, onClose, onAdded }: Props) {
+export function AddDialog({ settings, initialFile, initialMagnet, onClose, onAdded }: Props) {
   const [tab, setTab] = useState(initialFile ? 'File' : 'Magnet');
-  const [magnet, setMagnet] = useState('');
+  const [magnet, setMagnet] = useState(initialMagnet);
   const [file, setFile] = useState(initialFile);
   const [folder, setFolder] = useState(settings.download_dir);
   const [error, setError] = useState('');

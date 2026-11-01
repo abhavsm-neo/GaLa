@@ -21,12 +21,36 @@ use scanner::Found;
 use seeding::Seeder;
 use serde_json::json;
 use settings::{Settings, Store};
-use std::{path::Path, process::Command};
+use std::{path::Path, process::Command, sync::Mutex};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, State, WindowEvent,
+    AppHandle, Emitter, Manager, State, WindowEvent,
 };
+
+/// A torrent or magnet link Windows handed over, waiting for the Add dialog.
+#[derive(Default)]
+struct Opened(Mutex<Option<String>>);
+
+fn is_magnet(text: &str) -> bool {
+    text.get(..8).is_some_and(|start| start.eq_ignore_ascii_case("magnet:?"))
+}
+
+fn opened_item<I: IntoIterator<Item = String>>(args: I, is_file: impl Fn(&str) -> bool) -> Option<String> {
+    args.into_iter().skip(1).find(|arg| is_magnet(arg) || (arg.to_lowercase().ends_with(".torrent") && is_file(arg)))
+}
+
+fn receive_opened(app: &AppHandle, args: Vec<String>) {
+    if let Some(item) = opened_item(args, |path| Path::new(path).is_file()) {
+        *app.state::<Opened>().0.lock().unwrap() = Some(item);
+        let _ = app.emit("torrent-opened", ());
+    }
+}
+
+#[tauri::command]
+fn take_opened(opened: State<Opened>) -> Option<String> {
+    opened.0.lock().unwrap().take()
+}
 
 #[tauri::command]
 fn engine_snapshot(engine: State<Engine>) -> bool {
@@ -320,10 +344,15 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
 
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _, _| show_main(app)))
+        .plugin(tauri_plugin_single_instance::init(|app, args, _| {
+            show_main(app);
+            receive_opened(app, args);
+        }))
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let handle = app.handle();
+            app.manage(Opened::default());
+            receive_opened(handle, std::env::args().collect());
             app.manage(Store::load(handle)?);
             let data = app.path().app_local_data_dir()?;
             std::fs::create_dir_all(&data)?;
@@ -382,6 +411,7 @@ pub fn run() {
             restore_saves,
             set_save_folder,
             set_seed_rule,
+            take_opened,
             find_exes,
             folder_size,
             play_game,
@@ -391,4 +421,29 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("GaLa failed to start");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn opened(args: &[&str]) -> Option<String> {
+        opened_item(args.iter().map(|arg| arg.to_string()), |path| path.contains("real"))
+    }
+
+    #[test]
+    fn accepts_magnets_and_real_torrent_files() {
+        assert_eq!(opened(&["gala.exe", "magnet:?xt=urn:btih:abc&dn=x"]).as_deref(), Some("magnet:?xt=urn:btih:abc&dn=x"));
+        assert_eq!(opened(&["gala.exe", "MAGNET:?xt=abc"]).as_deref(), Some("MAGNET:?xt=abc"));
+        assert_eq!(opened(&["gala.exe", r"E:\real game.TORRENT"]).as_deref(), Some(r"E:\real game.TORRENT"));
+    }
+
+    #[test]
+    fn ignores_everything_else() {
+        assert_eq!(opened(&["gala.exe"]), None);
+        assert_eq!(opened(&["gala.exe", r"E:\missing.torrent"]), None);
+        assert_eq!(opened(&["gala.exe", "magnet:nope"]), None);
+        assert_eq!(opened(&["magnet:?xt=abc"]), None);
+        assert_eq!(opened(&["gala.exe", r"E:\real.exe"]), None);
+    }
 }

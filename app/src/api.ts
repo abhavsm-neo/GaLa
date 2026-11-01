@@ -121,6 +121,7 @@ export const api = {
     id,
     patch: { name: null, args: null, favorite: null, progress: null, rating: null, notes: null, categories: null, ...patch },
   }),
+  takeOpened: () => invoke<string | null>('take_opened'),
   scanGames: (folders: string[], launchers: boolean) => invoke<Found[]>('scan_games', { folders, launchers }),
   addScanned: (games: Found[]) => invoke<void>('add_scanned', { games }),
   moveGame: (id: number, folder: string) => invoke<void>('move_game', { id, folder }),

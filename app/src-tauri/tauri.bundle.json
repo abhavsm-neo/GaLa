@@ -2,6 +2,14 @@
   "bundle": {
     "resources": {
       "binaries/gala-engine.exe": "gala-engine.exe"
+    },
+    "fileAssociations": [
+      { "ext": ["torrent"], "name": "GaLa.Torrent", "description": "Torrent file", "role": "Viewer" }
+    ]
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": { "schemes": ["magnet"] }
     }
   }
 }
