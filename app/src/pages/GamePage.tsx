@@ -1,10 +1,11 @@
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { ask, open } from '@tauri-apps/plugin-dialog';
 import { useEffect, useState } from 'react';
-import { api, type DayPlaytime, type Game, type InstallProgress, type Running } from '../api';
-import { GameArt, installLabel, PlayBox, type GameActions } from '../components/GameCards';
+import { api, type DayPlaytime, type Game, type InstallProgress, type MoveProgress, type Running, type SaveStatus } from '../api';
+import { GameArt, installLabel, PlayBox, playable, type GameActions } from '../components/GameCards';
 import { InstallDialog } from '../components/InstallDialog';
 import { MatchDialog } from '../components/MatchDialog';
+import { MoveDialog } from '../components/MoveDialog';
 import { bytes, lastPlayed, playtime, tint } from '../format';
 
 const STATUSES = ['Playing', 'Backlog', 'Finished', 'Dropped'];
@@ -124,6 +125,70 @@ function Categories({ game, known }: { game: Game; known: string[] }) {
   );
 }
 
+function SaveBackups({ game, disabled }: { game: Game; disabled: boolean }) {
+  const [status, setStatus] = useState<SaveStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const load = () => api.saveStatus(game.id).then(setStatus).catch(e => setError(String(e)));
+
+  useEffect(() => {
+    load();
+  }, [game.id, game.total_seconds, game.save_folder]);
+
+  const run = async (work: () => Promise<void>) => {
+    setBusy(true);
+    setError('');
+    try {
+      await work();
+      await load();
+    } catch (e) {
+      setError(String(e));
+    }
+    setBusy(false);
+  };
+
+  const restore = async (created: number, when: string) => {
+    const yes = await ask(`Replace ${game.name}'s saves with the backup from ${when}? Your current saves are backed up first.`, { title: 'Restore saves', kind: 'warning' });
+    if (yes) run(() => api.restoreSaves(game.id, created));
+  };
+
+  const choose = async () => {
+    const folder = await open({ directory: true });
+    if (folder) await api.setSaveFolder(game.id, folder);
+  };
+
+  const when = (created: number) => new Date(created * 1000).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+  const description = !status
+    ? 'Looking for saves'
+    : status.found.length
+      ? 'GaLa backs these up each time you close the game.'
+      : status.listed
+        ? "No saves found yet. They'll appear after you've played."
+        : "GaLa doesn't know where this game keeps its saves. Choose the folder to back them up.";
+
+  return (
+    <div className="panel">
+      <h3>Save backups</h3>
+      <p>{description}</p>
+      {status?.found.slice(0, 3).map(path => <div className="path" key={path} title={path}>{path}</div>)}
+      {status?.backups.map(backup => (
+        <div className="kv exeopt" key={backup.created}>
+          <span>{when(backup.created)}, {backup.label}, {bytes(backup.bytes)}</span>
+          <button className="btn sm" disabled={busy || disabled} onClick={() => restore(backup.created, when(backup.created))}>Restore</button>
+        </div>
+      ))}
+      {error && <p className="err">{error}</p>}
+      <div className="panelbtns">
+        <button className="btn sm" disabled={busy || !status?.found.length} onClick={() => run(() => api.backUpSaves(game.id))}>Back up now</button>
+        <button className="btn sm" onClick={choose}>Choose save folder</button>
+        {game.save_folder && <button className="btn sm" onClick={() => api.setSaveFolder(game.id, null)}>Find automatically</button>}
+        {status && status.backups.length > 0 && <button className="btn sm" onClick={() => api.openFolder(status.folder)}>Open backups</button>}
+      </div>
+    </div>
+  );
+}
+
 function ExePicker({ game }: { game: Game }) {
   const [found, setFound] = useState<string[]>([]);
 
@@ -167,11 +232,23 @@ function InstallBar({ game, installing, onInstall }: { game: Game; installing: I
   return <button className="btn play big" onClick={onInstall}>Install</button>;
 }
 
-export function GamePage({ game, categories, running, installing, installFolder, actions, onRemoved, onInstall }: {
+function MoveBar({ moving }: { moving: MoveProgress }) {
+  const percent = moving.total ? Math.floor((moving.done / moving.total) * 100) : null;
+  return (
+    <div className="installbar">
+      <b>Moving{percent === null ? '' : ` ${percent}%`}</b>
+      <div className="bigbar"><i className={percent === null ? 'busy' : ''} style={{ width: `${percent ?? 100}%` }} /></div>
+      <button className="btn sm" onClick={() => api.cancelMove()}>Cancel</button>
+    </div>
+  );
+}
+
+export function GamePage({ game, categories, running, installing, moving, installFolder, actions, onRemoved, onInstall }: {
   game: Game | undefined;
   categories: string[];
   running: Running | null;
   installing: InstallProgress | null;
+  moving: MoveProgress | null;
   installFolder: string;
   actions: GameActions;
   onRemoved: () => void;
@@ -180,6 +257,7 @@ export function GamePage({ game, categories, running, installing, installFolder,
   const [tab, setTab] = useState('Overview');
   const [dialog, setDialog] = useState(false);
   const [matching, setMatching] = useState(false);
+  const [relocating, setRelocating] = useState(false);
   const [size, setSize] = useState<number | null>(null);
 
   useEffect(() => {
@@ -188,6 +266,9 @@ export function GamePage({ game, categories, running, installing, installFolder,
   }, [game?.install_dir]);
 
   if (!game) return <div className="page">That game is no longer in your library.</div>;
+
+  const movingHere = moving?.game_id === game.id ? moving : null;
+  const isRunning = running?.game_id === game.id;
 
   const remove = async () => {
     const yes = await ask(`Remove ${game.name} from your library? Its files stay on disk.`, { title: 'Remove game', kind: 'warning' });
@@ -204,9 +285,10 @@ export function GamePage({ game, categories, running, installing, installFolder,
       </section>
 
       <div className="actionbar">
-        {game.exe_path && !game.install_state && <PlayBox game={game} running={running} actions={actions} />}
+        {movingHere && <MoveBar moving={movingHere} />}
+        {playable(game) && !game.install_state && !movingHere && <PlayBox game={game} running={running} actions={actions} />}
         {game.install_state && <InstallBar game={game} installing={installing} onInstall={() => setDialog(true)} />}
-        {!game.exe_path && !game.install_state && (
+        {!playable(game) && !game.install_state && (
           <button className="btn play warn big" onClick={() => setTab('Launch settings')}>Finish setup</button>
         )}
         <div className="timeplayed">
@@ -214,6 +296,7 @@ export function GamePage({ game, categories, running, installing, installFolder,
           <span>Last two weeks: {game.recent_seconds ? playtime(game.recent_seconds) : 'None'}</span>
           <span>Total: {game.total_seconds ? playtime(game.total_seconds) : 'None'}</span>
         </div>
+        {game.launcher && <div className="stat"><small>Opens in</small><b>{game.launcher}</b></div>}
         <div className="stat"><small>Last played</small><b>{lastPlayed(game.last_played)}</b></div>
         <div className="stat"><small>On disk</small><b>{size === null ? '-' : bytes(size)}</b></div>
         <div className="right">
@@ -239,6 +322,7 @@ export function GamePage({ game, categories, running, installing, installFolder,
       )}
 
       {matching && <MatchDialog game={game} onClose={() => setMatching(false)} />}
+      {relocating && <MoveDialog game={game} size={size} onClose={() => setRelocating(false)} />}
 
       <div className="gtabs">
         {['Overview', 'Launch settings'].map(name => (
@@ -259,6 +343,7 @@ export function GamePage({ game, categories, running, installing, installFolder,
             {game.summary && <div className="panel"><h3>About this game</h3><p>{game.summary}</p></div>}
             <Screenshots game={game} />
             <Sessions game={game} />
+            <SaveBackups game={game} disabled={isRunning} />
             <div className="panel">
               <h3>Your notes</h3>
               <textarea
@@ -295,18 +380,37 @@ export function GamePage({ game, categories, running, installing, installFolder,
       ) : (
         <div className="gbody">
           <div>
-            <ExePicker game={game} />
+            {!game.launcher && <ExePicker game={game} />}
             <div className="panel">
-              <h3>Launch options</h3>
-              <input
-                key={game.id}
-                className="field"
-                aria-label="Launch options"
-                placeholder="-dx12 -skipintro"
-                defaultValue={game.args}
-                onBlur={e => api.updateGame(game.id, { args: e.target.value })}
-              />
+              <h3>Location</h3>
+              <div className="path">{game.install_dir}</div>
+              {game.launcher ? (
+                <p style={{ marginTop: 10 }}>{game.launcher} looks after this game, so move or update it there. GaLa only opens it, and playtime isn't counted.</p>
+              ) : (
+                <div style={{ marginTop: 10 }}>
+                  <button
+                    className="btn sm"
+                    disabled={Boolean(moving) || Boolean(game.install_state) || isRunning || !game.exe_path}
+                    onClick={() => setRelocating(true)}
+                  >
+                    Move game
+                  </button>
+                </div>
+              )}
             </div>
+            {!game.launcher && (
+              <div className="panel">
+                <h3>Launch options</h3>
+                <input
+                  key={game.id}
+                  className="field"
+                  aria-label="Launch options"
+                  placeholder="-dx12 -skipintro"
+                  defaultValue={game.args}
+                  onBlur={e => api.updateGame(game.id, { args: e.target.value })}
+                />
+              </div>
+            )}
           </div>
           <aside>
             <div className="panel">

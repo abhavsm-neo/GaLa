@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "bundle": "(if not exist src-tauri\\binaries mkdir src-tauri\\binaries) && copy /y E:\\GaLa\\dev\\build\\engine\\Release\\gala-engine.exe src-tauri\\binaries\\ && tauri build --config src-tauri/tauri.bundle.json"
   },
   "dependencies": {
     "@fontsource/chakra-petch": "^5.3.0",

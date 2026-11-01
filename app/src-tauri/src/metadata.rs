@@ -33,6 +33,7 @@ const NO_KEYS: &str = "IGDB and SteamGridDB keys are missing from .env";
 const GROUPS: &[&str] = &[
     "fitgirl", "dodi", "elamigos", "kaos", "xatab", "gog", "codex", "plaza", "cpy", "empress", "rune", "skidrow",
     "reloaded", "razor1911", "tenoke", "flt", "p2p", "tinyiso", "darksiders", "goldberg", "rg", "mechanics",
+    "ankergames", "onlinefix",
 ];
 const NOISE: &[&str] = &[
     "repack", "repacks", "cracked", "crack", "incl", "including", "dlc", "dlcs", "multi", "x64", "x86", "win64",
@@ -196,7 +197,7 @@ fn numeral(word: &str) -> &str {
     }
 }
 
-fn words(text: &str) -> Vec<String> {
+pub fn words(text: &str) -> Vec<String> {
     text.to_lowercase()
         .replace('&', " and ")
         .replace('\'', "")
@@ -285,6 +286,10 @@ pub fn clean_name(raw: &str) -> String {
         let whole = if tail.is_empty() || tail_noise { word.to_string() } else { format!("{word}-{tail}") };
         let lower = whole.to_lowercase();
         let bare = lower.trim_matches(|c: char| !c.is_alphanumeric());
+        if whole == "&" {
+            kept.push(whole);
+            continue;
+        }
         let noise = bare.is_empty()
             || is_version(bare)
             || GROUPS.contains(&bare)
@@ -584,6 +589,8 @@ mod tests {
             ("Portal 2 (2011) MULTI12", "Portal 2"),
             ("Baldurs Gate 3 v4.1.1.3686210 + 5 DLCs", "Baldurs Gate 3"),
             ("Stardew Valley", "Stardew Valley"),
+            ("Rooftops & Alleys The Parkour Game", "Rooftops & Alleys The Parkour Game"),
+            ("Ratchet.&.Clank.v1.2-FitGirl Repack", "Ratchet & Clank"),
             ("Red Dead Redemption 2 Build 1491.50", "Red Dead Redemption 2"),
         ] {
             assert_eq!(clean_name(raw), clean, "{raw}");

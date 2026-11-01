@@ -3,14 +3,22 @@ mod engine;
 mod installer;
 mod library;
 mod metadata;
+mod mover;
 mod player;
+mod saves;
+mod scanner;
+mod seeding;
 mod settings;
 
 use db::{DayPlaytime, Db, Game, GamePatch};
 use engine::Engine;
 use installer::{Installer, Progress};
 use metadata::{Match, Metadata};
+use mover::{MoveProgress, Mover};
 use player::{Player, Running};
+use saves::{SaveStatus, Saves};
+use scanner::Found;
+use seeding::Seeder;
 use serde_json::json;
 use settings::{Settings, Store};
 use std::{path::Path, process::Command};
@@ -128,6 +136,75 @@ fn remove_game(app: AppHandle, db: State<Db>, id: i64) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn scan_games(app: AppHandle, folders: Vec<String>, launchers: bool) -> Result<Vec<Found>, String> {
+    tauri::async_runtime::spawn_blocking(move || scanner::run(&app.state::<Db>(), &folders, launchers))
+        .await
+        .map_err(text)?
+}
+
+#[tauri::command]
+fn add_scanned(app: AppHandle, db: State<Db>, games: Vec<Found>) -> Result<(), String> {
+    scanner::add(&db, &games)?;
+    library::changed(&app);
+    Ok(())
+}
+
+#[tauri::command]
+fn move_game(app: AppHandle, mover: State<Mover>, id: i64, folder: String) -> Result<(), String> {
+    mover.start(&app, id, &folder)
+}
+
+#[tauri::command]
+fn cancel_move(mover: State<Mover>) {
+    mover.cancel();
+}
+
+#[tauri::command]
+fn move_status(mover: State<Mover>) -> Option<MoveProgress> {
+    mover.current()
+}
+
+async fn with_game<T: Send + 'static>(
+    app: AppHandle,
+    id: i64,
+    work: impl FnOnce(&AppHandle, &Game) -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let game = app.state::<Db>().game(id).map_err(text)?.ok_or("That game is no longer in your library")?;
+        work(&app, &game)
+    })
+    .await
+    .map_err(text)?
+}
+
+#[tauri::command]
+async fn save_status(app: AppHandle, id: i64) -> Result<SaveStatus, String> {
+    with_game(app, id, |app, game| Ok(saves::status(app, game))).await
+}
+
+#[tauri::command]
+async fn back_up_saves(app: AppHandle, id: i64) -> Result<(), String> {
+    with_game(app, id, saves::back_up_now).await
+}
+
+#[tauri::command]
+async fn restore_saves(app: AppHandle, id: i64, created: i64) -> Result<(), String> {
+    with_game(app, id, move |app, game| saves::restore(app, game, created)).await
+}
+
+#[tauri::command]
+fn set_save_folder(app: AppHandle, db: State<Db>, id: i64, folder: Option<String>) -> Result<(), String> {
+    db.set_save_folder(id, folder.as_deref()).map_err(text)?;
+    library::changed(&app);
+    Ok(())
+}
+
+#[tauri::command]
+fn set_seed_rule(store: State<Store>, rule: String) -> Result<Settings, String> {
+    store.update(|s| s.seed_rule = rule)
+}
+
+#[tauri::command]
 async fn search_metadata(app: AppHandle, query: String) -> Result<Vec<Match>, String> {
     app.state::<Metadata>().search(&app, &query).await
 }
@@ -215,15 +292,17 @@ fn show_main(app: &AppHandle) {
 
 fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "Open GaLa", true, None::<&str>)?;
+    let stop_seeding = MenuItem::with_id(app, "stop_seeding", "Stop all seeding", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit GaLa", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &quit])?;
+    let menu = Menu::with_items(app, &[&open, &stop_seeding, &quit])?;
 
-    let mut tray = TrayIconBuilder::new()
+    let mut tray = TrayIconBuilder::with_id(seeding::TRAY_ID)
         .tooltip("GaLa")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
             "open" => show_main(app),
+            "stop_seeding" => seeding::stop_all(app),
             "quit" => app.state::<Engine>().quit(app),
             _ => {}
         })
@@ -254,6 +333,10 @@ pub fn run() {
             Installer::start_worker(handle);
             app.manage(Metadata::default());
             metadata::start_worker(handle);
+            app.manage(Mover::default());
+            app.manage(Saves::default());
+            app.manage(Seeder::default());
+            tauri::async_runtime::spawn(saves::refresh_list(handle.clone()));
             app.manage(engine::start(handle));
             build_tray(handle)?;
             Ok(())
@@ -289,6 +372,16 @@ pub fn run() {
             remove_game,
             search_metadata,
             choose_metadata,
+            scan_games,
+            add_scanned,
+            move_game,
+            cancel_move,
+            move_status,
+            save_status,
+            back_up_saves,
+            restore_saves,
+            set_save_folder,
+            set_seed_rule,
             find_exes,
             folder_size,
             play_game,

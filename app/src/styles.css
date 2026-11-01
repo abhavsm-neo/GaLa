@@ -183,3 +183,11 @@ kbd{font:600 11px var(--ui);background:var(--s2);padding:1px 6px;border-radius:5
 .matchitem span{min-width:0;margin-right:auto}.matchitem b{display:block;font-weight:700}.matchitem small{color:var(--t3)}
 .shots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.shots button{padding:0;border-radius:6px;overflow:hidden;aspect-ratio:16/9}.shots img{width:100%;height:100%;object-fit:cover;display:block;transition:.15s}.shots button:hover img{transform:scale(1.04)}
 .overlay.lightbox{align-items:center;padding:24px;cursor:zoom-out}.lightbox img{max-width:100%;max-height:100%;border-radius:8px}
+
+.panelbtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.panel .path{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.installbar .btn{margin-left:10px;flex:none}
+.netside .kv{white-space:nowrap;align-items:center}.netside .kv b{overflow:visible}.netside .select{max-width:150px}
+.scanbox{width:min(760px,92vw)}.scanbox .chips{margin:10px 0}
+.scanitem{display:flex;align-items:center;gap:11px;padding:5px 6px;border-radius:7px;cursor:pointer}.scanitem:hover{background:var(--s2)}.scanitem.off{opacity:.5;cursor:default}
+.scanitem img,.scanitem .nocover{width:36px;height:48px;object-fit:cover;border-radius:4px;background:var(--s2);flex:none}
+.scanitem span:last-child{min-width:0}.scanitem b{display:block;font-weight:700}.scanitem small{display:block;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

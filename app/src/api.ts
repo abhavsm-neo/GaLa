@@ -29,7 +29,14 @@ export type Detail = {
   pieces: number[];
 };
 
-export type Settings = { download_dir: string; install_dir: string; down_limit: number; up_limit: number };
+export type Settings = {
+  download_dir: string;
+  install_dir: string;
+  down_limit: number;
+  up_limit: number;
+  backup_dir: string;
+  seed_rule: string;
+};
 
 export type Game = {
   id: number;
@@ -63,7 +70,25 @@ export type Game = {
   hero: string | null;
   logo: string | null;
   screenshots: string[];
+  save_folder: string | null;
+  launcher: string;
+  launch_uri: string | null;
 };
+
+export type Found = {
+  name: string;
+  folder: string;
+  exe: string | null;
+  launcher: string;
+  launch_uri: string | null;
+  installable: boolean;
+  sure: boolean;
+  added: boolean;
+};
+
+export type MoveProgress = { game_id: number; done: number; total: number };
+export type Backup = { created: number; label: string; bytes: number };
+export type SaveStatus = { listed: boolean; found: string[]; backups: Backup[]; folder: string };
 
 export type Match = { igdb_id: number; name: string; year: number | null; developer: string; cover: string | null };
 
@@ -96,6 +121,16 @@ export const api = {
     id,
     patch: { name: null, args: null, favorite: null, progress: null, rating: null, notes: null, categories: null, ...patch },
   }),
+  scanGames: (folders: string[], launchers: boolean) => invoke<Found[]>('scan_games', { folders, launchers }),
+  addScanned: (games: Found[]) => invoke<void>('add_scanned', { games }),
+  moveGame: (id: number, folder: string) => invoke<void>('move_game', { id, folder }),
+  cancelMove: () => invoke<void>('cancel_move'),
+  moveStatus: () => invoke<MoveProgress | null>('move_status'),
+  saveStatus: (id: number) => invoke<SaveStatus>('save_status', { id }),
+  backUpSaves: (id: number) => invoke<void>('back_up_saves', { id }),
+  restoreSaves: (id: number, created: number) => invoke<void>('restore_saves', { id, created }),
+  setSaveFolder: (id: number, folder: string | null) => invoke<void>('set_save_folder', { id, folder }),
+  setSeedRule: (rule: string) => invoke<Settings>('set_seed_rule', { rule }),
   searchMetadata: (query: string) => invoke<Match[]>('search_metadata', { query }),
   chooseMetadata: (id: number, igdbId: number) => invoke<void>('choose_metadata', { id, igdbId }),
   setGameExe: (id: number, exe: string) => invoke<void>('set_game_exe', { id, exe }),

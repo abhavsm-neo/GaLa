@@ -51,6 +51,11 @@ ALTER TABLE games ADD COLUMN cover TEXT;
 ALTER TABLE games ADD COLUMN hero TEXT;
 ALTER TABLE games ADD COLUMN logo TEXT;
 ALTER TABLE games ADD COLUMN screenshots TEXT NOT NULL DEFAULT '[]';
+", "
+ALTER TABLE games ADD COLUMN save_folder TEXT;
+", "
+ALTER TABLE games ADD COLUMN launcher TEXT NOT NULL DEFAULT '';
+ALTER TABLE games ADD COLUMN launch_uri TEXT;
 "];
 
 const TWO_WEEKS: i64 = 14 * 24 * 60 * 60;
@@ -61,7 +66,7 @@ SELECT g.id, g.torrent_id, g.name, g.install_dir, g.exe_path, g.args, g.favorite
        COALESCE(SUM(CASE WHEN s.started_at >= ?1 THEN s.seconds END), 0), MAX(s.started_at),
        g.source_path, g.install_state, g.install_error, g.meta_state, g.igdb_id, g.summary, g.developer,
        g.publisher, g.release_date, g.igdb_rating, g.genres, g.modes, g.categories, g.cover, g.hero, g.logo,
-       g.screenshots
+       g.screenshots, g.save_folder, g.launcher, g.launch_uri
 FROM games g LEFT JOIN sessions s ON s.game_id = g.id
 WHERE g.hidden = 0";
 
@@ -98,6 +103,9 @@ pub struct Game {
     pub hero: Option<String>,
     pub logo: Option<String>,
     pub screenshots: Vec<String>,
+    pub save_folder: Option<String>,
+    pub launcher: String,
+    pub launch_uri: Option<String>,
 }
 
 /// What IGDB and SteamGridDB say about a game.
@@ -180,6 +188,9 @@ fn to_game(row: &Row) -> rusqlite::Result<Game> {
         hero: row.get(28)?,
         logo: row.get(29)?,
         screenshots: list(row, 30)?,
+        save_folder: row.get(31)?,
+        launcher: row.get(32)?,
+        launch_uri: row.get(33)?,
     })
 }
 
@@ -223,6 +234,24 @@ impl Db {
             "UPDATE games SET install_dir = ?2, exe_path = ?3, install_state = '', install_error = '' WHERE id = ?1",
             params![id, dir, exe],
         ).map(|_| ())
+    }
+
+    pub fn set_launcher(&self, id: i64, launcher: &str, uri: &str) -> rusqlite::Result<()> {
+        self.0.lock().unwrap().execute(
+            "UPDATE games SET launcher = ?2, launch_uri = ?3 WHERE id = ?1",
+            params![id, launcher, uri],
+        ).map(|_| ())
+    }
+
+    pub fn finish_move(&self, id: i64, dir: &str, exe: Option<&str>) -> rusqlite::Result<()> {
+        self.0.lock().unwrap().execute(
+            "UPDATE games SET install_dir = ?2, exe_path = ?3 WHERE id = ?1",
+            params![id, dir, exe],
+        ).map(|_| ())
+    }
+
+    pub fn set_save_folder(&self, id: i64, folder: Option<&str>) -> rusqlite::Result<()> {
+        self.0.lock().unwrap().execute("UPDATE games SET save_folder = ?2 WHERE id = ?1", params![id, folder]).map(|_| ())
     }
 
     pub fn next_unidentified(&self) -> rusqlite::Result<Option<(i64, String)>> {

@@ -7,6 +7,14 @@ import type { Sample } from '../useEngine';
 
 const STAGES = ['Download', 'Verify', 'Extract', 'Install', 'Detect', 'Ready'];
 const LIMITS = [['Unlimited', 0], ['50 MB/s', 50], ['10 MB/s', 10]] as const;
+const SEED_RULES = [
+  ['Forever', 'forever'],
+  ['Until 1.0 ratio', 'ratio:1'],
+  ['Until 2.0 ratio', 'ratio:2'],
+  ['For 24 hours', 'hours:24'],
+  ['For a week', 'hours:168'],
+  ['Stop when done', 'none'],
+];
 const MB = 1024 * 1024;
 
 type Props = {
@@ -211,6 +219,19 @@ export function Downloads({ torrents, detail, history, settings, games, onOpenGa
               </select>
             </b>
           </div>
+          <div className="kv">Keep seeding
+            <b>
+              <select
+                className="select"
+                style={{ height: 24 }}
+                aria-label="Keep seeding"
+                value={settings.seed_rule}
+                onChange={async e => onSettings(await api.setSeedRule(e.target.value))}
+              >
+                {SEED_RULES.map(([label, value]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </b>
+          </div>
         </div>
       </div>
 
@@ -230,7 +251,7 @@ export function Downloads({ torrents, detail, history, settings, games, onOpenGa
       )}
       {active && <ActiveCard key={active.id} torrent={active} detail={detail} onRemove={onRemove} />}
       <Section title="Up next" items={upNext} detail={detail} onRemove={onRemove} />
-      <Section title="Seeding" items={seeding} detail={detail} onRemove={onRemove} />
+      <Section title="Finished" items={seeding} detail={detail} onRemove={onRemove} />
 
       {!torrents.length && (
         <div className="empty">

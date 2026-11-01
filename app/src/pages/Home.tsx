@@ -1,5 +1,5 @@
 import type { Game, Running } from '../api';
-import { Banner, Capsule, GameArt, PlayBox, type GameActions } from '../components/GameCards';
+import { Banner, Capsule, GameArt, PlayBox, playable, type GameActions } from '../components/GameCards';
 import { lastPlayed, playtime } from '../format';
 
 type Props = { games: Game[]; running: Running | null; actions: GameActions; goLibrary: () => void };
@@ -17,7 +17,7 @@ export function Home({ games, running, actions, goLibrary }: Props) {
 
   const played = games.filter(g => g.last_played).sort((a, b) => b.last_played! - a.last_played!);
   const added = [...games].sort((a, b) => b.added_at - a.added_at);
-  const backlog = games.filter(g => g.exe_path && !g.total_seconds);
+  const backlog = games.filter(g => playable(g) && !g.total_seconds);
   const hero = played[0] ?? added[0];
 
   return (
@@ -32,7 +32,7 @@ export function Home({ games, running, actions, goLibrary }: Props) {
             <span>Last played {lastPlayed(hero.last_played).toLowerCase()}</span>
           </div>
           <div className="herobtns">
-            {hero.exe_path && <PlayBox game={hero} running={running} actions={actions} />}
+            {playable(hero) && <PlayBox game={hero} running={running} actions={actions} />}
             <button className="btn" style={{ height: 52 }} onClick={() => actions.open(hero.id)}>Game details</button>
           </div>
         </div>

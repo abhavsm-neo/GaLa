@@ -1,0 +1,7 @@
+{
+  "bundle": {
+    "resources": {
+      "binaries/gala-engine.exe": "gala-engine.exe"
+    }
+  }
+}

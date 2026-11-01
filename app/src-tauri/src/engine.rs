@@ -87,6 +87,7 @@ async fn run(
                         app.exit(0);
                     }
                     crate::library::on_engine_event(&app, &event);
+                    crate::seeding::on_engine_event(&app, &event);
                     let _ = app.emit("engine-event", event);
                 }
                 Some(command) = commands.recv() => {

@@ -1,14 +1,15 @@
 import { open } from '@tauri-apps/plugin-dialog';
 import { useState } from 'react';
 import { api, type Game } from '../api';
-import { Banner, Capsule, GameArt, type GameActions } from '../components/GameCards';
+import { Banner, Capsule, GameArt, playable, type GameActions } from '../components/GameCards';
+import { ScanDialog } from '../components/ScanDialog';
 import { lastPlayed, playtime } from '../format';
 
 const COLLECTIONS: [string, (g: Game) => boolean][] = [
   ['All games', () => true],
   ['Favourites', g => g.favorite],
-  ['Ready to play', g => Boolean(g.exe_path)],
-  ['Needs setup', g => !g.exe_path && !g.install_state],
+  ['Ready to play', playable],
+  ['Needs setup', g => !playable(g) && !g.install_state],
   ['To install', g => Boolean(g.install_state)],
   ['Playing', g => g.progress === 'Playing'],
   ['Backlog', g => g.progress === 'Backlog'],
@@ -26,7 +27,7 @@ const SORTS: Record<string, (a: Game, b: Game) => number> = {
 };
 
 const unique = (values: string[]) => [...new Set(values)].sort((a, b) => a.localeCompare(b));
-const searchText = (g: Game) => [g.name, g.developer, g.publisher, ...g.genres, ...g.categories].join(' ').toLowerCase();
+const searchText = (g: Game) => [g.name, g.developer, g.publisher, g.launcher, ...g.genres, ...g.categories].join(' ').toLowerCase();
 const year = (g: Game) => (g.release_date ? new Date(g.release_date * 1000).getUTCFullYear() : '-');
 
 export function Library({ games, actions }: { games: Game[]; actions: GameActions }) {
@@ -35,8 +36,9 @@ export function Library({ games, actions }: { games: Game[]; actions: GameAction
   const [mode, setMode] = useState('grid');
   const [size, setSize] = useState(178);
   const [search, setSearch] = useState('');
+  const [scanning, setScanning] = useState(false);
 
-  const genres = unique(games.flatMap(g => g.genres));
+  const genres =unique(games.flatMap(g => g.genres));
   const categories = unique(games.flatMap(g => g.categories));
   const inGenre = (name: string) => (g: Game) => g.genres.includes(name);
   const inCategory = (name: string) => (g: Game) => g.categories.includes(name);
@@ -105,7 +107,9 @@ export function Library({ games, actions }: { games: Game[]; actions: GameAction
             </label>
           )}
           <button className="btn sm" onClick={addExisting}>Add existing game</button>
+          <button className="btn sm" onClick={() => setScanning(true)}>Find games</button>
         </div>
+        {scanning && <ScanDialog onClose={() => setScanning(false)} />}
 
         {!list.length && <p style={{ color: 'var(--t3)', padding: 40 }}>No games here yet.</p>}
         {mode === 'list' ? (
@@ -118,7 +122,7 @@ export function Library({ games, actions }: { games: Game[]; actions: GameAction
                   <td><b>{g.name}</b></td>
                   <td>{g.genres[0] ?? '-'}</td>
                   <td>{year(g)}</td>
-                  <td>{g.exe_path ? g.progress : 'Needs setup'}</td>
+                  <td>{playable(g) ? g.progress : 'Needs setup'}</td>
                   <td>{playtime(g.total_seconds)}</td>
                   <td>{lastPlayed(g.last_played)}</td>
                 </tr>

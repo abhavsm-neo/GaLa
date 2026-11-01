@@ -72,7 +72,7 @@ export function App() {
   }, []);
 
   const { connected, torrents, detail, history } = useEngine(toast);
-  const { games, running, installing } = useLibrary();
+  const { games, running, installing, moving } = useLibrary();
 
   const go = (next: Route) => {
     if (next.page === route.page && next.game === route.game) return;
@@ -161,6 +161,7 @@ export function App() {
             categories={[...new Set(games.flatMap(g => g.categories))].sort()}
             running={running}
             installing={installing}
+            moving={moving}
             installFolder={settings?.install_dir ?? 'E:\\GaLa\\Games'}
             actions={actions}
             onRemoved={() => setPage('Library')}

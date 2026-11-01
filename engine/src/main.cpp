@@ -209,6 +209,7 @@ json to_json(lt::torrent_status const& status) {
         {"added_time", static_cast<std::int64_t>(status.added_time)},
         {"all_time_download", status.all_time_download},
         {"all_time_upload", status.all_time_upload},
+        {"seeding_seconds", status.seeding_duration.count()},
         {"progress", status.progress},
         {"done_bytes", status.total_done},
         {"total_bytes", status.total_wanted},

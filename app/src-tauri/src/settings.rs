@@ -9,6 +9,8 @@ pub struct Settings {
     pub install_dir: String,
     pub down_limit: u64,
     pub up_limit: u64,
+    pub backup_dir: String,
+    pub seed_rule: String,
 }
 
 impl Default for Settings {
@@ -18,6 +20,8 @@ impl Default for Settings {
             install_dir: r"E:\GaLa\Games".into(),
             down_limit: 0,
             up_limit: 0,
+            backup_dir: r"E:\GaLa\Save Backups".into(),
+            seed_rule: "forever".into(),
         }
     }
 }

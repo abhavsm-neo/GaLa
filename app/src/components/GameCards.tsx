@@ -21,11 +21,13 @@ const BUSY: Record<string, string> = {
   detecting: 'Finding game',
 };
 
+export const playable = (game: Game) => Boolean(game.exe_path || game.launch_uri);
+
 export function installLabel(game: Game): [string, string] | null {
   if (BUSY[game.install_state]) return [BUSY[game.install_state], 'warn'];
   if (game.install_state === 'pending') return ['Ready to install', 'info'];
   if (game.install_state === 'failed') return ['Install failed', 'bad'];
-  return game.exe_path ? null : ['Needs setup', 'bad'];
+  return playable(game) ? null : ['Needs setup', 'bad'];
 }
 
 export function GameArt({ game, wide }: { game: Game; wide?: boolean }) {
@@ -53,7 +55,7 @@ export function Capsule({ game, actions }: { game: Game; actions: GameActions })
         <GameArt game={game} />
         <div className="hov" style={{ borderRadius: 9 }}>
           <small>{playtime(game.total_seconds)}</small>
-          {game.exe_path ? (
+          {playable(game) ? (
             <button className="btn play" onClick={e => { e.stopPropagation(); actions.play(game.id); }}>Play</button>
           ) : (
             <span className="btn play warn">{game.install_state === 'pending' ? 'Install' : 'Open'}</span>
@@ -62,7 +64,7 @@ export function Capsule({ game, actions }: { game: Game; actions: GameActions })
       </div>
       <div className="ctitle">{game.name}</div>
       <div className="csub">
-        {game.total_seconds ? `${playtime(game.total_seconds)} · ${lastPlayed(game.last_played)}` : game.progress}
+        {game.total_seconds ? `${playtime(game.total_seconds)} · ${lastPlayed(game.last_played)}` : game.launcher || game.progress}
       </div>
     </article>
   );
@@ -78,7 +80,7 @@ export function Banner({ game, actions }: { game: Game; actions: GameActions }) 
       onKeyDown={e => e.key === 'Enter' && actions.open(game.id)}
     >
       <GameArt game={game} wide />
-      {game.exe_path && (
+      {playable(game) && (
         <button className="quick" aria-label={`Play ${game.name}`} onClick={e => { e.stopPropagation(); actions.play(game.id); }}>▶</button>
       )}
       <div className="info">

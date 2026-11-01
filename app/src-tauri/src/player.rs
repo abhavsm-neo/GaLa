@@ -1,7 +1,7 @@
 //! Launches games inside a Job Object. A launcher that starts the real game and quits
 //! stays in the job, so the session only ends when every process in it has gone.
 
-use crate::{db::Db, library};
+use crate::{db::Db, library, mover::Mover, saves};
 use serde::Serialize;
 use std::{
     iter::once,
@@ -22,8 +22,10 @@ use windows_sys::Win32::{
         },
         Threading::{CreateProcessW, ResumeThread, TerminateProcess, CREATE_SUSPENDED, PROCESS_INFORMATION, STARTUPINFOW},
     },
+    UI::{Shell::ShellExecuteW, WindowsAndMessaging::SW_SHOWNORMAL},
 };
 
+const SHELL_EXECUTE_OK: usize = 32;
 const POLL: Duration = Duration::from_secs(1);
 const SAVE_EVERY: Duration = Duration::from_secs(15);
 
@@ -40,6 +42,17 @@ pub struct Player(Mutex<Option<Running>>);
 
 fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain(once(0)).collect()
+}
+
+/// The launcher takes over from here, so GaLa can't see how long the game runs.
+fn open_in_launcher(uri: &str, launcher: &str) -> Result<(), String> {
+    let (verb, target) = (wide("open"), wide(uri));
+    let result = unsafe { ShellExecuteW(null_mut(), verb.as_ptr(), target.as_ptr(), null(), null(), SW_SHOWNORMAL) };
+    if result as usize > SHELL_EXECUTE_OK {
+        Ok(())
+    } else {
+        Err(format!("Windows couldn't open {launcher}. Is it still installed?"))
+    }
 }
 
 fn launch(exe: &str, args: &str) -> Result<usize, String> {
@@ -104,7 +117,7 @@ fn still_running(job: usize) -> bool {
     }
 }
 
-fn watch(app: AppHandle, job: usize, session: i64) {
+fn watch(app: AppHandle, game_id: i64, job: usize, session: i64) {
     let started = Instant::now();
     let mut saved = Instant::now();
     let db = app.state::<Db>();
@@ -120,6 +133,7 @@ fn watch(app: AppHandle, job: usize, session: i64) {
     *app.state::<Player>().0.lock().unwrap() = None;
     let _ = app.emit("game-status", Option::<Running>::None);
     library::changed(&app);
+    saves::after_playing(&app, game_id);
 }
 
 impl Player {
@@ -132,8 +146,14 @@ impl Player {
         if running.is_some() {
             return Err("Close the game that's running first".into());
         }
+        if app.state::<Mover>().is_moving(game_id) {
+            return Err("This game is moving. Wait for it to finish".into());
+        }
         let db = app.state::<Db>();
         let game = db.game(game_id).map_err(|e| e.to_string())?.ok_or("That game is no longer in your library")?;
+        if let Some(uri) = &game.launch_uri {
+            return open_in_launcher(uri, &game.launcher);
+        }
         let exe = game.exe_path.ok_or("Choose the game's file first")?;
         if !Path::new(&exe).exists() {
             return Err(format!("{exe} is missing"));
@@ -147,7 +167,7 @@ impl Player {
         library::changed(app);
 
         let app = app.clone();
-        thread::spawn(move || watch(app, job, session));
+        thread::spawn(move || watch(app, game_id, job, session));
         Ok(())
     }
 

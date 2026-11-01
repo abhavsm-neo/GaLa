@@ -43,7 +43,7 @@ fn walk(folder: &Path, depth: usize, found: &mut Vec<(PathBuf, usize, u64)>) {
     }
 }
 
-fn letters(text: &str) -> String {
+pub fn letters(text: &str) -> String {
     text.chars().filter(|c| c.is_alphanumeric()).flat_map(char::to_lowercase).collect()
 }
 
