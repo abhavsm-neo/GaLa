@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GaLa Launcher Design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#090B0F;--s0:#0F1218;--s1:rgba(255,255,255,.045);--s2:rgba(255,255,255,.08);--s3:rgba(255,255,255,.13);
+  --line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.16);
+  --t1:#F3F5F8;--t2:#AFB6C3;--t3:#747C8B;
+  --go:#6CBF2E;--go-h:#83D443;--go-t:#10260A;--warn:#FFB547;--bad:#FF6B6B;--info:#5AB6FF;
+  --amb:#5AB6FF;--card:178px;--bar:52px;
+  --disp:"Rajdhani","Segoe UI Semibold",sans-serif;--ui:"Chakra Petch","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--t1);font:500 13.5px/1.45 var(--ui);overflow:hidden;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{border:0;background:none;cursor:pointer;padding:0}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--amb);outline-offset:2px}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:var(--s3);border-radius:9px;border:3px solid transparent;background-clip:content-box}
+h1,h2,h3{margin:0;font-family:var(--disp);font-weight:600;letter-spacing:.2px}
+
+#ambient{position:fixed;inset:-80px;background-size:cover;background-position:center;filter:blur(70px) saturate(1.5);opacity:.2;transition:background-image .6s;pointer-events:none}
+#ambient::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent,var(--bg) 75%)}
+.shell{position:relative;height:100vh;display:flex;flex-direction:column}
+
+.titlebar{height:var(--bar);flex:none;display:flex;align-items:center;gap:6px;padding:0 14px;background:rgba(9,11,15,.72);backdrop-filter:blur(18px);border-bottom:1px solid var(--line);z-index:10}
+.brand{display:flex;align-items:center;margin-right:14px;color:var(--t1)}
+.brand svg{width:26px;height:26px;display:block}
+.hist{width:30px;height:30px;border-radius:7px;color:var(--t2);font-size:16px}.hist:hover{background:var(--s2);color:var(--t1)}
+.nav{height:var(--bar);padding:0 13px;color:var(--t2);font:600 18px var(--disp);letter-spacing:.5px;position:relative}
+.nav:hover{color:var(--t1)}.nav.on{color:var(--t1)}.nav.on::after{content:"";position:absolute;left:12px;right:12px;bottom:0;height:3px;border-radius:3px 3px 0 0;background:var(--amb)}
+.searchbtn{flex:1;max-width:340px;margin-left:auto;height:34px;display:flex;align-items:center;gap:8px;padding:0 11px;background:var(--s1);border:1px solid var(--line);border-radius:9px;color:var(--t3)}
+.searchbtn:hover{background:var(--s2)}.searchbtn kbd{margin-left:auto}
+kbd{font:600 11px var(--ui);background:var(--s2);padding:1px 6px;border-radius:5px;color:var(--t2)}
+.dlpill{display:flex;align-items:center;gap:9px;height:34px;padding:0 11px 0 5px;border-radius:9px;background:var(--s1);border:1px solid var(--line);min-width:172px}
+.dlpill:hover{background:var(--s2)}
+.ring{--p:0;width:25px;height:25px;border-radius:50%;background:conic-gradient(var(--go) calc(var(--p)*1%),var(--s3) 0);display:grid;place-items:center;flex:none}
+.ring::after{content:"";width:17px;height:17px;background:var(--s0);border-radius:50%}
+.dlpill small{display:block;font-size:11px;line-height:1.15;color:var(--t2);text-align:left;white-space:nowrap}.dlpill b{display:block;font-size:12px;line-height:1.2;text-align:left;font-weight:700}
+.iconbtn{height:34px;min-width:34px;padding:0 9px;border-radius:9px;background:var(--s1);border:1px solid var(--line);color:var(--t2);display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.iconbtn:hover{background:var(--s2);color:var(--t1)}.iconbtn.on{color:var(--go);border-color:rgba(108,191,46,.45)}
+.searchbtn,.dlpill,.iconbtn,.select,.seg,.seg button,.chip{border-radius:3px}
+.iconbtn,.seg button,.chip,.subt button,.shelfhead button,.sideitem,.pb-up b{font-family:var(--disp);font-weight:700;font-size:15px}
+
+#view{flex:1;min-height:0;overflow:auto;position:relative;animation:fade .25s ease}
+#view.flat{overflow:hidden}
+@keyframes fade{from{opacity:0;transform:translateY(5px)}}
+.footer{height:30px;flex:none;display:flex;align-items:center;gap:18px;padding:0 14px;font-size:12px;color:var(--t2);background:rgba(9,11,15,.82);border-top:1px solid var(--line);white-space:nowrap;overflow:hidden}
+.footer .ok{color:var(--go)}.footer .end{margin-left:auto}
+.nowplaying{flex:none;display:flex;align-items:center;gap:14px;padding:8px 14px;background:var(--s0);border-top:1px solid var(--line2)}
+.nowplaying img{height:42px;border-radius:5px}.nowplaying b{font:600 19px var(--disp);display:block;line-height:1.1}.nowplaying small{color:var(--t2)}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--go);animation:pulse 1.4s infinite}@keyframes pulse{50%{opacity:.25}}
+
+.btn{height:38px;padding:0 16px;border-radius:3px;background:transparent;border:1px solid var(--line2);font:700 16px var(--disp);display:inline-flex;gap:8px;align-items:center;justify-content:center;white-space:nowrap}
+.btn:hover{background:var(--s2);border-color:var(--t3)}.btn.sm{height:30px;padding:0 12px;font-size:14.5px}
+.play{background:#4FA321;border-color:#4FA321;color:#fff}.play:hover{background:#5DB82E;border-color:#5DB82E}
+.playbox{display:inline-flex;height:64px;border-radius:3px;overflow:hidden;background:linear-gradient(180deg,#7CC332,#3F8F1A);color:#fff;flex:none}
+.playbox button{display:flex;align-items:center;justify-content:center;height:100%;color:#fff}.playbox button:hover{background:rgba(255,255,255,.15)}
+.pb-play{width:64px}.pb-play svg{width:27px;height:31px}
+.pb-up{gap:10px;padding:0 18px 0 15px;border-left:1px solid rgba(255,255,255,.32);text-align:left}.pb-up svg{width:20px;height:22px;flex:none}
+.pb-up b{display:block;font-size:13px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;line-height:1.2}.pb-up small{display:block;font-size:11.5px;color:#E7F4D8;line-height:1.2;white-space:nowrap}
+.timeplayed{display:flex;flex-direction:column;color:var(--t2);font-size:13px;line-height:1.35}.timeplayed small{color:var(--t1);font-size:12px;font-weight:800;letter-spacing:.7px;text-transform:uppercase}
+.btn[data-play]::before{content:"";border-left:9px solid currentColor;border-block:6px solid transparent}
+.play.stop{background:transparent;border-color:var(--bad);color:var(--bad)}.play.stop:hover{background:rgba(255,107,107,.12);border-color:var(--bad)}
+.play.warn{background:var(--warn);border-color:var(--warn);color:#2A1A00}.play.info{background:transparent;border-color:var(--line2);color:var(--t1)}.play.info:hover{background:var(--s2)}
+.play.big{height:50px;padding:0 32px;font:700 23px var(--disp);letter-spacing:.8px}
+
+.art{position:relative;overflow:hidden;background:linear-gradient(145deg,color-mix(in srgb,var(--c,#4a5570) 80%,#000),#10141c);display:block}
+.art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.art .fb{position:absolute;inset:auto 10px 10px 10px;font:700 21px/1 var(--disp)}
+
+.page{padding:24px 30px 40px;max-width:1720px;margin:auto}
+.shelf{margin-top:30px}.shelfhead{display:flex;align-items:baseline;gap:12px;margin-bottom:12px}.shelfhead h2{font-size:26px}.shelfhead span{color:var(--t3);font-size:13px}.shelfhead button{margin-left:auto;color:var(--t2);font-weight:700;font-size:12px}.shelfhead button:hover{color:var(--t1)}
+.row{display:grid;grid-auto-flow:column;grid-auto-columns:var(--w,170px);gap:14px;overflow-x:auto;padding:6px 3px 14px;scrollbar-width:thin}
+
+.hero{position:relative;height:clamp(380px,58vh,600px);overflow:hidden}
+.slide{position:absolute;inset:0;opacity:0;transition:opacity .8s;pointer-events:none}.slide.on{opacity:1;pointer-events:auto}
+.slide>.art{position:absolute;inset:0;background:#10141c}.slide.on>.art img{animation:kb 9s ease-out both}@keyframes kb{from{transform:scale(1.07)}to{transform:scale(1)}}
+.slide::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(9,11,15,.93) 4%,rgba(9,11,15,.35) 48%,transparent 72%),linear-gradient(0deg,var(--bg),transparent 42%)}
+.herotext{position:absolute;z-index:2;left:42px;bottom:44px;width:min(520px,48%)}
+.herotext .logo{max-width:370px;max-height:140px;display:block;margin-bottom:14px;filter:drop-shadow(0 4px 18px #000a)}.herotext h1{font-size:58px;line-height:1;margin-bottom:12px}
+.kicker{display:inline-flex;gap:7px;align-items:center;font-weight:800;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--go);margin-bottom:10px}
+.herotext p{color:#D5D9E1;margin:0 0 18px;font-size:15px;max-width:480px}.meta{display:flex;gap:16px;color:var(--t2);margin-bottom:18px;font-size:13px;flex-wrap:wrap}.meta b{color:var(--t1)}.herobtns{display:flex;gap:10px;align-items:center}
+.thumbs{position:absolute;z-index:3;right:26px;bottom:44px;width:238px;display:flex;flex-direction:column;gap:7px}
+.thumb{display:flex;gap:10px;align-items:center;padding:7px;border-radius:10px;background:rgba(9,11,15,.55);backdrop-filter:blur(12px);text-align:left;position:relative;overflow:hidden;border:1px solid transparent}
+.thumb:hover{background:rgba(35,40,52,.8)}.thumb.on{background:rgba(35,40,52,.9);border-color:var(--line2)}
+.thumb .art{width:42px;height:56px;border-radius:5px;flex:none}.thumb b{display:block;font-weight:700;line-height:1.2}.thumb small{color:var(--t2)}
+.thumb u{position:absolute;left:0;bottom:0;height:2px;width:0;background:var(--go)}.thumb.on u{animation:grow 8s linear both}@keyframes grow{to{width:100%}}
+
+.capsule{position:relative;cursor:pointer;min-width:0;transition:transform .18s}
+.capsule .art{aspect-ratio:2/3;border-radius:9px;box-shadow:0 6px 18px #0007,0 0 0 1px var(--line)}
+.capsule:hover,.capsule:focus-visible{transform:translateY(-5px) scale(1.02);z-index:2}.capsule:hover .art{box-shadow:0 16px 34px #000b,0 0 0 2px var(--c,var(--amb))}
+.capsule .hov{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;gap:7px;padding:10px;background:linear-gradient(0deg,rgba(5,6,9,.93),transparent 62%);opacity:0;transition:.16s;z-index:2}
+.capsule:hover .hov,.capsule:focus-within .hov{opacity:1}.hov .btn{width:100%;height:33px;font-size:12px}.hov small{color:var(--t2);font-size:11.5px}
+.ctitle{margin-top:8px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.csub{font-size:12px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{position:absolute;top:7px;left:7px;z-index:3;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:5px;background:rgba(5,6,9,.82);backdrop-filter:blur(5px)}
+.badge.go{color:var(--go)}.badge.warn{color:var(--warn)}.badge.bad{color:var(--bad)}.badge.info{color:var(--info)}
+.fav{position:absolute;top:7px;right:7px;z-index:3;color:#FF7C96;font-size:14px;text-shadow:0 1px 4px #000}
+.pbar{position:absolute;left:0;right:0;bottom:0;height:4px;background:#0009;z-index:3}.pbar i{display:block;height:100%;background:var(--go)}
+
+.cont{position:relative;cursor:pointer;border-radius:11px;overflow:hidden;background:var(--s0);box-shadow:0 0 0 1px var(--line);transition:.18s}.cont:hover{transform:translateY(-4px);box-shadow:0 14px 28px #0009,0 0 0 2px var(--c)}
+.cont .art{aspect-ratio:460/215}.cont .info{padding:10px 12px 12px}.cont b{font-size:14.5px;font-weight:700;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cont small{color:var(--t2)}
+.cont .quick{position:absolute;right:10px;top:10px;width:38px;height:38px;border-radius:3px;background:#4FA321;color:#fff;font-size:13px;opacity:0;transition:.15s;z-index:3}.cont:hover .quick{opacity:1}
+
+.libgrid{height:100%;display:grid;grid-template-columns:270px minmax(0,1fr)}
+.libside{border-right:1px solid var(--line);background:rgba(9,11,15,.5);overflow:auto;padding:12px 10px}
+.side-h{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--t3);padding:12px 9px 5px}
+.sideitem{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:6px 9px;border-radius:7px;color:var(--t2);text-align:left;font-weight:600}
+.sideitem:hover{background:var(--s1);color:var(--t1)}.sideitem.on{background:var(--s2);color:var(--t1)}.sideitem span{color:var(--t3);font-size:12px}
+.minigame{display:flex;align-items:center;gap:9px;width:100%;padding:4px 7px;border-radius:6px;text-align:left;color:var(--t2)}.minigame:hover{background:var(--s2);color:var(--t1)}
+.minigame .art{width:36px;height:18px;border-radius:3px;flex:none}.minigame span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12.5px}
+.libmain{overflow:auto;padding:0 24px 30px}
+.tools{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:9px;padding:13px 0;background:linear-gradient(180deg,var(--bg) 78%,transparent);flex-wrap:wrap}
+.tools h1{font-size:30px;margin-right:6px}.tools h1 small{font:600 13px var(--ui);color:var(--t3);margin-left:7px}
+.select{height:34px;background:var(--s1);border:1px solid var(--line);border-radius:8px;padding:0 8px;color:var(--t1)}.select option{background:#151922}
+.seg{display:flex;background:var(--s1);border:1px solid var(--line);border-radius:8px;padding:2px}.seg button{height:28px;padding:0 10px;border-radius:6px;color:var(--t2);font-weight:700;font-size:12px}.seg button.on{background:var(--s3);color:var(--t1)}
+.spacer{flex:1}.sizer{display:flex;align-items:center;gap:7px;color:var(--t3);font-size:12px}input[type=range]{accent-color:var(--amb);width:110px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--card),1fr));gap:18px 15px;padding:4px 3px}
+.grouph{display:flex;gap:9px;align-items:baseline;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}.grouph h2{font-size:21px}.grouph span{color:var(--t3);font-size:12px}
+.tbl{width:100%;border-collapse:collapse}.tbl th{position:sticky;top:60px;background:var(--bg);z-index:2;text-align:left;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--t3);padding:7px 9px;border-bottom:1px solid var(--line);font-weight:800}
+.tbl td{padding:6px 9px;border-bottom:1px solid var(--line);color:var(--t2)}.tbl tr{cursor:pointer}.tbl tbody tr:hover{background:var(--s1)}.tbl td b{color:var(--t1);font-weight:700}.tbl .art{width:92px;height:43px;border-radius:4px}
+
+.ghero{position:relative;height:clamp(300px,46vh,470px);overflow:hidden}.ghero .art{position:absolute;inset:0}
+.ghero::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,var(--bg) 1%,transparent 52%),linear-gradient(90deg,rgba(9,11,15,.5),transparent 55%)}
+.ghero .logo{position:absolute;z-index:2;left:36px;bottom:26px;max-width:420px;max-height:170px;filter:drop-shadow(0 4px 20px #000b)}.ghero h1{position:absolute;z-index:2;left:36px;bottom:26px;font-size:64px;line-height:1}
+.actionbar{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:26px;padding:12px 36px;background:rgba(14,17,23,.88);backdrop-filter:blur(16px);border-block:1px solid var(--line);flex-wrap:wrap}
+.stat small{display:block;font-size:11px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.6px}.stat b{font-size:15px;font-weight:700}
+.actionbar .right{margin-left:auto;display:flex;gap:7px;align-items:center}
+.gtabs{display:flex;gap:4px;padding:0 36px;border-bottom:1px solid var(--line)}.gtabs button{padding:12px 13px;color:var(--t2);font:600 18px var(--disp);position:relative}.gtabs button:hover{color:var(--t1)}.gtabs button.on{color:var(--t1)}.gtabs button.on::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:3px;background:var(--c,var(--amb))}
+.gbody{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:26px;padding:22px 36px 44px;max-width:1500px}
+.panel{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:15px 16px;margin-bottom:16px}.panel h3{font-size:20px;margin-bottom:9px}
+.panel p{margin:0;color:var(--t2);font-size:14px;line-height:1.6}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:5px 0;color:var(--t3);border-bottom:1px solid var(--line)}.kv:last-child{border:0}.kv b{color:var(--t1);font-weight:600;text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{display:inline-block;padding:3px 10px;margin:0 5px 5px 0;background:var(--s2);border-radius:99px;font-size:12px;color:var(--t2);font-weight:600}
+.sessions{display:flex;align-items:flex-end;gap:3px;height:88px}.sessions i{flex:1;background:var(--c,var(--amb));border-radius:2px 2px 0 0;min-height:2px;opacity:.85}.sessions i:hover{opacity:1}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{padding:5px 11px;border-radius:7px;background:var(--s2);color:var(--t2);font-weight:700;font-size:12px}.chip:hover{background:var(--s3)}.chip.on{background:var(--c,var(--amb));color:#08101a}
+.stars button{color:var(--t3);font-size:19px}.stars button.on{color:#FFC94D}
+.path{font:12.5px Consolas,monospace;background:rgba(0,0,0,.35);padding:8px 10px;border-radius:7px;color:var(--t2);word-break:break-all}
+.switch{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);color:var(--t2);width:100%;text-align:left}.switch i{width:36px;height:20px;border-radius:20px;background:var(--s3);position:relative;transition:.15s;flex:none}.switch i::after{content:"";position:absolute;left:3px;top:3px;width:14px;height:14px;background:#fff;border-radius:50%;transition:.15s}.switch.on i{background:var(--go)}.switch.on i::after{left:19px}
+.field{width:100%;height:36px;padding:0 10px;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:7px}
+.savet{display:flex;align-items:center;gap:11px;padding:8px 0;border-bottom:1px solid var(--line)}.savet:last-child{border:0}.savet i{width:9px;height:9px;border-radius:50%;background:var(--go);flex:none}.savet div{flex:1}.savet small{display:block;color:var(--t3)}
+
+.dlwrap{padding:20px 28px 40px;max-width:1500px;margin:auto}
+.net{display:grid;grid-template-columns:minmax(0,1fr) 248px;gap:0;border:1px solid var(--line);border-radius:13px;background:var(--s1);overflow:hidden}.net canvas{width:100%;height:150px;display:block}
+.nethead{display:flex;gap:15px;align-items:center;padding:11px 14px 0;font-size:12px;color:var(--t2)}.nethead b{font:700 25px var(--disp);color:var(--t1)}.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
+.netside{border-left:1px solid var(--line);padding:11px 14px}.netside .kv{padding:6px 0}
+.active{position:relative;display:grid;grid-template-columns:270px minmax(0,1fr);gap:18px;margin-top:16px;padding:14px;border:1px solid var(--line2);border-radius:13px;overflow:hidden;background:var(--s0)}
+.active>.glow{position:absolute;inset:0;opacity:.17;background-size:cover;background-position:center;filter:blur(18px)}.active>*:not(.glow){position:relative}
+.active .art{aspect-ratio:460/215;border-radius:8px}.activehead{display:flex;align-items:center;gap:8px}.activehead h2{font-size:29px;margin-right:auto}
+.bigbar{height:9px;background:var(--s2);border-radius:9px;overflow:hidden;margin:9px 0 7px}.bigbar i{display:block;height:100%;background:var(--go);transition:width .9s linear}
+.steps{display:flex;margin-top:10px;font-size:12px;font-weight:700;color:var(--t3)}.steps span{flex:1;padding-top:6px;border-top:3px solid var(--s2)}.steps span.done{border-color:var(--go);color:var(--t2)}.steps span.now{border-color:var(--amb);color:var(--t1)}
+.dlsub{display:flex;gap:18px;color:var(--t2);font-size:13px;flex-wrap:wrap}.dlsub b{color:var(--t1)}
+.qitem{display:grid;grid-template-columns:18px 104px minmax(0,1.2fr) minmax(90px,1fr) 104px 112px;gap:12px;align-items:center;padding:9px 11px;border-bottom:1px solid var(--line);cursor:pointer}.qitem:hover{background:var(--s1)}.qitem.open{background:var(--s2)}.qitem.over{box-shadow:inset 0 2px var(--amb)}
+.qitem .art{height:48px;border-radius:5px}.qitem b{display:block;font-weight:700}.qitem small{color:var(--t3)}.grip{color:var(--t3);cursor:grab}
+.tinybar{height:6px;background:var(--s2);border-radius:6px;overflow:hidden}.tinybar i{display:block;height:100%;background:var(--amb)}
+.detail{padding:12px 16px 16px;background:rgba(0,0,0,.25);border-bottom:1px solid var(--line)}.piecemap{width:100%;height:64px;display:block;border-radius:6px;margin-top:9px}
+.subt{display:flex;gap:4px;margin-bottom:9px}.subt button{padding:4px 10px;border-radius:6px;font-size:12px;font-weight:700;color:var(--t2)}.subt button.on{background:var(--s3);color:var(--t1)}
+.peer{display:grid;grid-template-columns:120px 1fr 72px 72px;gap:9px;color:var(--t2);font-size:12.5px;padding:3px 0}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:13px}
+.tile{padding:15px 17px;border-radius:12px;background:var(--s1);border:1px solid var(--line)}.tile span{color:var(--t3);font-size:12px;font-weight:700}.tile b{display:block;font:700 40px/1.05 var(--disp);margin-top:3px}.tile small{color:var(--t2)}
+.statgrid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,1fr);gap:16px;margin-top:16px}
+.heat{display:grid;grid-template-rows:repeat(7,1fr);grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:3px}.heat i{aspect-ratio:1;border-radius:2px;background:var(--s2)}.heat i.l1{background:#27451A}.heat i.l2{background:#3B6C22}.heat i.l3{background:#529A29}.heat i.l4{background:var(--go)}
+.topg{display:grid;grid-template-columns:34px minmax(0,1fr) 54px;gap:11px;align-items:center;padding:5px 0;cursor:pointer}.topg .art{height:46px;border-radius:4px}.topg .tinybar i{background:var(--go)}.topg b{font-weight:700;font-size:13px}
+.legendrow{display:flex;justify-content:space-between;color:var(--t2);padding:3px 0}.legendrow i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:7px}
+.disk{display:flex;height:64px;border-radius:9px;overflow:hidden;gap:2px}.disk .art{min-width:18px}
+
+.overlay{position:fixed;inset:0;z-index:30;background:rgba(3,4,7,.68);backdrop-filter:blur(7px);display:none;align-items:flex-start;justify-content:center;padding-top:11vh}.overlay.open{display:flex}
+.palette{width:min(620px,calc(100vw - 32px));background:#141821;border:1px solid var(--line2);border-radius:14px;overflow:hidden;box-shadow:0 30px 70px #000a}
+.palette input{width:100%;height:54px;padding:0 18px;background:none;border:0;border-bottom:1px solid var(--line);font-size:17px;outline:0}
+.results{max-height:420px;overflow:auto;padding:7px}.res{display:flex;align-items:center;gap:11px;width:100%;padding:7px 9px;border-radius:8px;text-align:left}.res.on,.res:hover{background:var(--s2)}.res .art{width:70px;height:33px;border-radius:4px;flex:none}.res small{margin-left:auto;color:var(--t3)}
+.add{width:min(560px,calc(100vw - 32px));background:#141821;border:1px solid var(--line2);border-radius:14px;padding:20px}.add h2{font-size:28px;margin-bottom:12px}
+.add textarea{width:100%;height:96px;resize:none;padding:10px;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:8px;font:12.5px Consolas,monospace}
+.drop{height:96px;border:2px dashed var(--line2);border-radius:10px;display:grid;place-items:center;color:var(--t2);width:100%}.drop:hover{background:var(--s1)}
+.err{min-height:20px;color:var(--bad);font-size:12.5px;margin-top:5px}.foot{display:flex;justify-content:flex-end;gap:8px;margin-top:9px}
+#ctx{position:fixed;z-index:40;display:none;min-width:210px;padding:5px;background:#171b25;border:1px solid var(--line2);border-radius:10px;box-shadow:0 18px 40px #000a}#ctx.open{display:block}
+#ctx button{display:block;width:100%;padding:7px 10px;border-radius:6px;text-align:left}#ctx button:hover{background:var(--s2)}#ctx hr{border:0;border-top:1px solid var(--line);margin:4px}#ctx .bad{color:var(--bad)}
+#toast{position:fixed;right:18px;bottom:44px;z-index:50;background:#1a1f2a;border:1px solid var(--line2);border-left:3px solid var(--go);border-radius:8px;padding:10px 14px;transform:translateY(16px);opacity:0;transition:.2s;pointer-events:none;font-weight:600}#toast.open{opacity:1;transform:none}
+
+#couch{position:fixed;inset:0;z-index:60;display:none;background:#000}#couch.open{display:block}#couch .bg{position:absolute;inset:0}#couch .bg::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,#000 8%,transparent 62%),linear-gradient(90deg,#000b,transparent 60%)}
+#couch .txt{position:absolute;left:5vw;bottom:360px;z-index:2;max-width:640px}#couch .txt img{max-width:440px;max-height:170px;display:block;margin-bottom:12px}#couch .txt h1{font-size:64px}#couch .txt p{font-size:18px;color:#DADEE6}
+.ctiles{position:absolute;left:5vw;right:0;bottom:60px;display:flex;gap:16px;z-index:2;transition:transform .25s}.ctile{flex:none;width:170px;border-radius:10px;overflow:hidden;opacity:.62;transition:.2s}.ctile .art{aspect-ratio:2/3}.ctile.on{opacity:1;transform:scale(1.15) translateY(-9px);box-shadow:0 0 0 3px #fff,0 20px 40px #000}
+.hint{position:absolute;left:5vw;bottom:20px;z-index:2;color:#C9CED8;display:flex;gap:16px}
+
+.catgrid{display:grid;grid-template-columns:minmax(0,1fr) 320px;height:100%}
+.catmain{overflow:auto;padding:22px 26px 36px}.catside{overflow:auto;border-left:1px solid var(--line);background:rgba(9,11,15,.5);padding:16px}
+.cathead{display:flex;align-items:flex-end;gap:14px;margin-bottom:14px;flex-wrap:wrap}.cathead h1{font-size:40px;line-height:1}.cathead p{margin:3px 0 0;color:var(--t2)}
+.catsearch{width:100%;height:46px;padding:0 15px;background:var(--s1);border:1px solid var(--line2);border-radius:10px;font-size:15px;margin-bottom:11px}
+.catfilters{margin-bottom:17px}
+.source{padding:10px 0;border-bottom:1px solid var(--line)}.source b{display:block;font-weight:700}.source small{display:block;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.source .switch{border:0;padding:0 0 3px;color:var(--t1);font-weight:700}
+.source .ok{color:var(--go)}.source .chk{color:var(--warn)}
+.version{display:grid;grid-template-columns:minmax(0,1fr) 72px 72px 96px;gap:10px;align-items:center;padding:10px 4px;border-bottom:1px solid var(--line)}.version b{display:block;font-weight:700}.version small{color:var(--t3)}
+.upd .art{aspect-ratio:460/215}.upd .info{display:flex;gap:9px;align-items:center;justify-content:space-between}.updv{color:var(--go);font-weight:700}
+.updatechip{display:flex;align-items:center;gap:6px}.achsum{display:flex;align-items:center;gap:18px}.achring{--p:0;width:92px;height:92px;border-radius:50%;background:conic-gradient(var(--c,var(--go)) calc(var(--p)*1%),var(--s3) 0);display:grid;place-items:center;flex:none}.achring span{width:72px;height:72px;border-radius:50%;background:var(--s0);display:grid;place-items:center;font:700 24px var(--disp)}
+.ach{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}.ach:last-child{border:0}.ach i{width:34px;height:34px;border-radius:8px;background:color-mix(in srgb,var(--c) 34%,transparent);color:var(--t1);display:grid;place-items:center;font-style:normal;flex:none}.ach div{flex:1;min-width:0}.ach small{display:block;color:var(--t3)}.ach.off{opacity:.48}.ach.off i{background:var(--s2)}.ach em{font-style:normal;color:var(--t3);font-size:12px}
+@media(max-width:1180px){.catgrid{grid-template-columns:1fr}.catside{display:none}.navtxt{display:none}.searchbtn{max-width:220px}.thumbs{display:none}.herotext{width:70%}.gbody{grid-template-columns:1fr}.libgrid{grid-template-columns:210px minmax(0,1fr)}.net{grid-template-columns:1fr}.netside{border-left:0;border-top:1px solid var(--line)}.statgrid{grid-template-columns:1fr}.qitem{grid-template-columns:18px 84px minmax(0,1fr) 110px}.qitem>.h{display:none}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="ambient"></div>
+<div class="shell">
+  <header class="titlebar">
+    <button class="brand" data-go="home" aria-label="GaLa home"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 3h26v7H10v12h12v-5h-7v-6h14v18H3z"/></svg></button>
+    <button class="hist" data-act="back" aria-label="Back">‹</button><button class="hist" data-act="forward" aria-label="Forward">›</button>
+    <button class="nav" data-go="home">Home</button><button class="nav" data-go="catalogue">Catalogue</button><button class="nav" data-go="library">Library</button><button class="nav" data-go="downloads">Downloads</button><button class="nav" data-go="stats">Stats</button>
+    <button class="searchbtn" data-act="palette">Search games and actions<kbd>Ctrl K</kbd></button>
+    <button class="dlpill" data-go="downloads" id="dlpill"></button>
+    <button class="iconbtn" data-act="add">+ Add</button>
+    <button class="iconbtn" data-act="couch" title="Controller mode">Couch mode</button>
+  </header>
+  <main id="view" tabindex="-1"></main>
+  <section class="nowplaying" id="nowplaying" hidden></section>
+  <footer class="footer" id="footer"></footer>
+</div>
+
+<div class="overlay" id="paletteOv"><div class="palette" role="dialog" aria-label="Search"><input id="pinput" aria-label="Search games and actions" placeholder="Search your library or type a command"><div class="results" id="results"></div></div></div>
+<div class="overlay" id="addOv"><div class="add" role="dialog" aria-label="Add a game" id="addBox"></div></div>
+<div id="ctx" role="menu"></div>
+<div id="toast" role="status"></div>
+<div id="couch" aria-label="Couch mode"></div>
+
+<script>
+const CDN='https://cdn.cloudflare.steamstatic.com/steam/apps/';
+const G=[
+ {id:1091500,n:'Cyberpunk 2077',dev:'CD Projekt Red',y:2020,g:['RPG','Action','Open world'],pl:'Single player',h:118,l:'Today',lt:1,z:92,st:'Installed',c:'#F4E23C',prog:'Playing',r:5,fav:1,d:'A neon open-world RPG about a mercenary chasing a one-of-a-kind implant through Night City.',cb:'Finish Phantom Liberty before the weekend.'},
+ {id:1245620,n:'Elden Ring',dev:'FromSoftware',y:2022,g:['RPG','Soulslike','Open world'],pl:'Single player, Co-op',h:214,l:'Yesterday',lt:2,z:60,st:'Seeding',c:'#D9B44A',prog:'Playing',r:5,fav:1,d:'A vast, punishing fantasy world built for exploration, buildcraft and hard-won victories.'},
+ {id:1086940,n:"Baldur's Gate 3",dev:'Larian Studios',y:2023,g:['RPG','Strategy','Co-op'],pl:'Single player, Co-op',h:163,l:'3 days ago',lt:3,z:150,st:'Installed',c:'#C56DFF',prog:'Playing',r:5,fav:1,d:'A party-based RPG where every choice, roll and companion can reshape the whole story.'},
+ {id:292030,n:'The Witcher 3',dev:'CD Projekt Red',y:2015,g:['RPG','Open world'],pl:'Single player',h:96,l:'Oct 12',lt:9,z:50,st:'Installed',c:'#D0463B',prog:'Finished',r:5,d:'Monster hunter Geralt searches war-torn kingdoms for his adopted daughter.'},
+ {id:1145360,n:'Hades',dev:'Supergiant Games',y:2020,g:['Roguelike','Action','Indie'],pl:'Single player',h:64,l:'Oct 20',lt:6,z:15,st:'Installed',c:'#E8533A',prog:'Finished',r:5,fav:1,d:'Fight out of the underworld again and again in a roguelike with superb combat and voice work.'},
+ {id:1174180,n:'Red Dead Redemption 2',dev:'Rockstar Games',y:2019,g:['Action','Open world'],pl:'Single player, Online',h:72,l:'Sep 29',lt:15,z:121,st:'Installed',c:'#C8362E',prog:'Backlog',r:4,d:'An outlaw gang crumbles at the end of the American frontier.'},
+ {id:413150,n:'Stardew Valley',dev:'ConcernedApe',y:2016,g:['Indie','Simulation','Co-op'],pl:'Single player, Co-op',h:141,l:'Oct 27',lt:4,z:1,st:'Installed',c:'#6FBF5A',prog:'Playing',r:5,d:'Inherit an overgrown farm and slowly build a life in a small valley town.'},
+ {id:367520,n:'Hollow Knight',dev:'Team Cherry',y:2017,g:['Indie','Soulslike','Metroidvania'],pl:'Single player',h:38,l:'Sep 18',lt:20,z:9,st:'Installed',c:'#7DA7D9',prog:'Finished',r:5,d:'Descend through a ruined insect kingdom in a haunting hand-drawn metroidvania.'},
+ {id:814380,n:'Sekiro',dev:'FromSoftware',y:2019,g:['Action','Soulslike'],pl:'Single player',h:0,l:'Never',lt:99,z:25,st:'Needs exe',c:'#C93A32',prog:'Backlog',r:0,d:'A one-armed shinobi duels through a reimagined Sengoku Japan.'},
+ {id:620,n:'Portal 2',dev:'Valve',y:2011,g:['Puzzle','Co-op'],pl:'Single player, Co-op',h:22,l:'Aug 30',lt:30,z:13,st:'Installed',c:'#E98A2E',prog:'Finished',r:5,d:'Sharp writing and elegant first-person puzzles inside a decaying test facility.'},
+ {id:782330,n:'DOOM Eternal',dev:'id Software',y:2020,g:['Action','Shooter'],pl:'Single player',h:0,l:'Never',lt:99,z:50,st:'Queued',c:'#E23B2E',prog:'Backlog',r:0,d:'Fast, aggressive first-person combat against the armies of hell.'},
+ {id:1593500,n:'God of War',dev:'Santa Monica Studio',y:2022,g:['Action','Adventure'],pl:'Single player',h:0,l:'Never',lt:99,z:70,st:'Installed',c:'#C9D6DF',prog:'Backlog',r:0,d:'Kratos and his son cross the Norse realms on a deeply personal journey.'},
+ {id:632470,n:'Disco Elysium',dev:'ZA/UM',y:2019,g:['RPG','Indie'],pl:'Single player',h:31,l:'Jul 22',lt:60,z:20,st:'Installed',c:'#C89A5A',prog:'Finished',r:5,d:'An amnesiac detective talks through a murder case in an unforgettable RPG.'},
+ {id:1551360,n:'Forza Horizon 5',dev:'Playground Games',y:2021,g:['Racing','Open world'],pl:'Single player, Online',h:0,l:'Never',lt:99,z:110,st:'Extracting',c:'#F2A33A',prog:'Backlog',r:0,d:'Open-road racing across a huge and varied map of Mexico.'},
+ {id:504230,n:'Celeste',dev:'Maddy Makes Games',y:2018,g:['Indie','Platformer'],pl:'Single player',h:18,l:'Jun 11',lt:90,z:1,st:'Installed',c:'#E85C8A',prog:'Finished',r:5,d:'A tight, heartfelt platformer about climbing a mountain and yourself.'},
+ {id:105600,n:'Terraria',dev:'Re-Logic',y:2011,g:['Indie','Sandbox','Co-op'],pl:'Single player, Co-op',h:87,l:'May 3',lt:120,z:1,st:'Installed',c:'#58B368',prog:'Dropped',r:4,d:'Dig, build and fight through a 2D sandbox with endless secrets.'},
+ {id:1623730,n:'Palworld',dev:'Pocketpair',y:2024,g:['Survival','Co-op','Open world'],pl:'Single player, Co-op',h:12,l:'Apr 9',lt:150,z:40,st:'Queued',c:'#49B6E6',prog:'Backlog',r:3,d:'Catch creatures, build a base and put them to work in an open survival world.'},
+ {id:2358720,n:'Black Myth: Wukong',dev:'Game Science',y:2024,g:['Action','Soulslike'],pl:'Single player',h:0,l:'Never',lt:99,z:130,st:'Downloading',c:'#D88B3C',prog:'Backlog',r:0,d:'An action RPG drawn from Journey to the West, led by spectacular boss fights.'}
+];
+const STAGES=['Download','Verify','Extract','Install','Detect','Ready'];
+let D=[
+ {id:2358720,p:68,stage:'Download',down:24.6,up:2.2,peers:84,seeds:41,paused:false},
+ {id:1551360,p:41,stage:'Extract',down:0,up:.8,peers:14,seeds:9,paused:false},
+ {id:782330,p:0,stage:'Queued',down:0,up:0,peers:0,seeds:0,paused:false},
+ {id:1623730,p:0,stage:'Queued',down:0,up:0,peers:0,seeds:0,paused:false},
+ {id:814380,p:100,stage:'Needs exe',down:0,up:.4,peers:6,seeds:3,paused:false},
+ {id:1245620,p:100,stage:'Seeding',down:0,up:1.9,peers:11,seeds:0,paused:false,ratio:1.42}
+];
+const S={view:'home',param:null,hist:[],fwd:[],hero:0,gtab:'Overview',dlopen:null,dlsub:'Peers',run:null,addTab:'Magnet',
+ lib:{coll:'All games',group:'none',sort:'recent',mode:'grid',size:178},graph:Array.from({length:150},(_,i)=>[18+Math.sin(i/9)*5+Math.sin(i/3)*3,2+Math.sin(i/7)])};
+const SOURCES=[
+ {name:'Personal list',url:'https://lists.example.com/personal.json',games:1284,last:'12 min ago',on:true,status:'Healthy'},
+ {name:'Community feed',url:'https://feed.example.org/games.json',games:8630,last:'1 h ago',on:true,status:'Healthy'},
+ {name:'Archive mirror',url:'https://mirror.example.net/index.json',games:3412,last:'6 h ago',on:true,status:'Slow'}
+];
+const CAT=[
+ {id:1903340,n:'Clair Obscur: Expedition 33',dev:'Sandfall Interactive',y:2025,g:['RPG','Strategy'],z:48,c:'#C9A36A',d:'A turn-based RPG with real-time timing, set in a painted Belle Époque world.',v:[['Community feed','1.5.1',48,412],['Personal list','1.4.0',47,186]]},
+ {id:1771300,n:'Kingdom Come: Deliverance II',dev:'Warhorse Studios',y:2025,g:['RPG','Open world'],z:96,c:'#A98F52',d:'A grounded medieval RPG in 15th-century Bohemia.',v:[['Community feed','1.3.2',96,276]]},
+ {id:1145350,n:'Hades II',dev:'Supergiant Games',y:2025,g:['Roguelike','Action','Indie'],z:12,c:'#7B6CE0',d:'Battle beyond the underworld as Melinoë in this roguelike sequel.',v:[['Personal list','1.0.2',12,538],['Community feed','1.0.1',12,301],['Archive mirror','0.9.8',11,44]]},
+ {id:2215430,n:'Ghost of Tsushima',dev:'Sucker Punch',y:2024,g:['Action','Open world'],z:75,c:'#D94A3D',d:'A samurai defends Tsushima Island during the Mongol invasion.',v:[['Community feed','1053.8',75,352]]},
+ {id:2050650,n:'Resident Evil 4',dev:'Capcom',y:2023,g:['Action','Horror'],z:60,c:'#8D3A32',d:'Leon Kennedy hunts for the president\'s daughter in a rebuilt survival horror classic.',v:[['Archive mirror','1.0.3',60,97],['Community feed','1.1.0',61,245]]},
+ {id:990080,n:'Hogwarts Legacy',dev:'Avalanche Software',y:2023,g:['RPG','Open world'],z:85,c:'#5AA0B8',d:'Live as a student in an open-world 1800s wizarding school.',v:[['Personal list','1.3.2',85,204]]},
+ {id:1888930,n:'The Last of Us Part I',dev:'Naughty Dog',y:2023,g:['Action','Adventure'],z:100,c:'#6D8F5A',d:'Joel and Ellie cross a ruined America in a story-led survival game.',v:[['Community feed','1.1.4',100,189]]},
+ {id:1426210,n:'It Takes Two',dev:'Hazelight',y:2021,g:['Co-op','Platformer'],z:50,c:'#E8A23C',d:'A two-player adventure built around constantly changing mechanics.',v:[['Personal list','1.0.0',50,167]]},
+ {id:1687950,n:'Persona 5 Royal',dev:'Atlus',y:2022,g:['RPG','Strategy'],z:41,c:'#E23B3B',d:'Lead a double life as a student and a phantom thief in Tokyo.',v:[['Community feed','1.0.4',41,220]]},
+ {id:1794680,n:'Vampire Survivors',dev:'poncle',y:2022,g:['Roguelike','Indie'],z:1,c:'#D0463B',d:'A minimalist survival game where hordes grow until the screen fills.',v:[['Archive mirror','1.13',1,86]]},
+ {id:553850,n:'Helldivers 2',dev:'Arrowhead',y:2024,g:['Co-op','Shooter'],z:150,c:'#F2C037',d:'A chaotic squad shooter about spreading managed democracy.',v:[['Community feed','1.0.0',150,124]]},
+ {id:1817190,n:'Spider-Man: Miles Morales',dev:'Insomniac Games',y:2022,g:['Action','Open world'],z:75,c:'#B23BC4',d:'Miles Morales defends a snowy New York in an open-world action game.',v:[['Personal list','2.1',75,231]]}
+];
+let UP=[
+ {id:1091500,cur:'2.21',nw:'2.31',size:8.4,src:'Personal list'},
+ {id:1086940,cur:'4.1.1',nw:'4.1.3',size:3.2,src:'Community feed'},
+ {id:1145360,cur:'1.38',nw:'1.39',size:.6,src:'Community feed'}
+];
+const VER={};
+const NOACH=new Set([413150,105600,620]);
+const ACHN=[['First steps','Finish the opening'],['Getting started','Reach the first milestone'],['Explorer','Discover every region'],['Collector','Find 50 hidden items'],['Sharpshooter','Win without taking damage'],['Survivor','Clear a hard encounter'],['Night owl','Play past midnight'],['Speedrunner','Finish a chapter quickly'],['Hoarder','Own every rare item'],['Perfectionist','Finish all side content'],['True ending','See the hidden ending'],['Completionist','Unlock everything']];
+S.cat={q:'',genre:'All'};
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const game=id=>G.find(g=>String(g.id)===String(id));
+const playable=g=>['Installed','Seeding'].includes(g.st);
+const rng=s=>()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+const fmtH=h=>h?h.toLocaleString()+' h':'Not played';
+function art(g,type='library_600x900.jpg',cls=''){
+  const src=g.art===false?'':`<img src="${CDN+g.id}/${type}" alt="" loading="lazy" onerror="this.remove()">`;
+  return `<span class="art ${cls}" style="--c:${g.c}"><span class="fb">${esc(g.n)}</span>${src}</span>`;
+}
+const logo=(g,cls='logo',tag='h1')=>g.art===false?`<${tag}>${esc(g.n)}</${tag}>`:`<img class="${cls}" src="${CDN+g.id}/logo.png" alt="${esc(g.n)}" onerror="this.nextElementSibling.hidden=false;this.remove()"><${tag} hidden>${esc(g.n)}</${tag}>`;
+function badge(g){
+  const m={Downloading:['info',(D.find(d=>d.id===g.id)?.p|0)+'%'],Queued:['warn','Queued'],Extracting:['warn','Extracting'],Installing:['warn','Installing'],Detecting:['warn','Detecting'],Verifying:['warn','Verifying'],'Needs exe':['bad','Needs setup']}[g.st];
+  if(!m&&UP.some(u=>u.id===g.id))return '<span class="badge go">Update</span>';
+  return m?`<span class="badge ${m[0]}" data-badge="${g.id}">${m[1]}</span>`:'';
+}
+const updCard=u=>{const g=game(u.id);return `<article class="cont upd" tabindex="0" data-go="game:${g.id}" data-gid="${g.id}" style="--c:${g.c}">${art(g,'header.jpg')}<div class="info"><span style="min-width:0"><b>${esc(g.n)}</b><small>${esc(u.cur)} to <span class="updv">${esc(u.nw)}</span> · ${u.size} GB</small></span><button class="btn sm play" data-update="${g.id}">Update</button></div></article>`};
+const ach=g=>{if(NOACH.has(g.id))return null;const r=rng(g.id+3),total=24+Math.floor(r()*36),pct=g.h?Math.min(.95,.12+g.h/240):0;return{total,got:Math.round(total*pct),pct,list:ACHN.map(([n,d],i)=>({n,d,on:i<Math.round(ACHN.length*pct)}))}};
+const sourcesOn=()=>SOURCES.filter(s=>s.on).map(s=>s.name);
+function catCards(){
+  const q=S.cat.q.toLowerCase(),on=sourcesOn();
+  const list=CAT.filter(c=>c.v.some(v=>on.includes(v[0]))).filter(c=>S.cat.genre==='All'||c.g.includes(S.cat.genre)).filter(c=>c.n.toLowerCase().includes(q)||c.dev.toLowerCase().includes(q)||c.g.some(t=>t.toLowerCase().includes(q)));
+  return list.map(c=>{const owned=game(c.id),best=Math.max(...c.v.filter(v=>on.includes(v[0])).map(v=>v[3]));
+    return `<article class="capsule" tabindex="0" ${owned?`data-go="game:${c.id}"`:`data-cat="${c.id}"`} style="--c:${c.c}">${owned?'<span class="badge go">In library</span>':`<span class="badge info">${best} seeds</span>`}<div style="position:relative">${art(c)}<div class="hov" style="border-radius:9px"><small>${esc(c.g.slice(0,2).join(' · '))}<br>${c.z} GB · ${c.v.length} version${c.v.length>1?'s':''}</small><span class="btn play">${owned?'Open':'Get game'}</span></div></div><div class="ctitle">${esc(c.n)}</div><div class="csub">${esc(c.dev)} · ${c.y}</div></article>`}).join('')||'<p style="color:var(--t3);padding:30px">No games match. Try another search, or turn on more sources.</p>';
+}
+function openVersions(id){
+  const c=CAT.find(x=>x.id==id),on=sourcesOn();
+  openAdd(`<h2>${esc(c.n)}</h2><p style="color:var(--t2);margin:0 0 8px">${esc(c.d)}</p><div class="version" style="color:var(--t3);font-size:12px;padding-bottom:5px"><span>Version and source</span><span>Size</span><span>Seeds</span><span></span></div>${c.v.map((v,i)=>on.includes(v[0])?`<div class="version"><div><b>Version ${esc(v[1])}</b><small>${esc(v[0])}</small></div><span>${v[2]} GB</span><span>${v[3]}</span><button class="btn sm play" data-getv="${c.id}:${i}">Download</button></div>`:'').join('')}<div class="foot"><button class="btn sm" data-close>Cancel</button></div>`);
+}
+function startUpdate(id){
+  const g=game(id),u=UP.find(x=>x.id==id);
+  if(!u)return;
+  UP=UP.filter(x=>x!==u);VER[id]=u.nw;g.st='Queued';D.push({id:g.id,p:0,stage:'Queued',down:0,up:0,peers:0,seeds:0,paused:false,update:true});
+}
+function playBtn(g,big){
+  const k=big?'big':'';
+  if(S.run?.id===g.id)return `<button class="btn play stop ${k}" data-stop="1">Stop</button>`;
+  if(playable(g)&&big){
+    const u=UP.find(x=>x.id===g.id);
+    return `<div class="playbox"><button class="pb-play" data-play="${g.id}" aria-label="Play ${esc(g.n)}"><svg viewBox="0 0 27 31" aria-hidden="true"><path fill="currentColor" d="M1 1l25 14.5L1 30z"/></svg></button>${u?`<button class="pb-up" data-update="${g.id}" aria-label="Update ${esc(g.n)} to version ${esc(u.nw)}"><svg viewBox="0 0 20 22" aria-hidden="true"><path fill="currentColor" d="M10 1l9 10h-5.5v6h-7v-6H1zM2 19h16v2.5H2z"/></svg><span><b>Update</b><small>${esc(u.nw)} · ${u.size} GB</small></span></button>`:''}</div>`;
+  }
+  if(playable(g))return `<button class="btn play ${k}" data-play="${g.id}">Play</button>`;
+  if(g.st==='Needs exe')return `<button class="btn play warn ${k}" data-act="pickexe" data-id="${g.id}">Finish setup</button>`;
+  return `<button class="btn play info ${k}" data-go="downloads">View progress</button>`;
+}
+const capsule=g=>`<article class="capsule" tabindex="0" data-go="game:${g.id}" data-gid="${g.id}" style="--c:${g.c}">
+  ${badge(g)}${g.fav?'<span class="fav" aria-label="Favourite">♥</span>':''}
+  <div style="position:relative">${art(g)}<div class="hov" style="border-radius:9px"><small>${esc(g.g.slice(0,2).join(' · '))}<br>${fmtH(g.h)}</small>${playBtn(g)}</div></div>
+  <div class="ctitle">${esc(g.n)}</div><div class="csub">${g.h?`${fmtH(g.h)} · ${esc(g.l)}`:esc(g.prog)}</div></article>`;
+const cont=g=>`<article class="cont" tabindex="0" data-go="game:${g.id}" data-gid="${g.id}" style="--c:${g.c}">${art(g,'header.jpg')}${playable(g)?`<button class="quick" data-play="${g.id}" aria-label="Play ${esc(g.n)}">▶</button>`:''}<div class="info"><b>${esc(g.n)}</b><small>${fmtH(g.h)} · ${esc(g.l)}</small></div></article>`;
+
+const pages={
+home(){
+  const heroes=[game(1091500),game(1245620),game(1086940),game(2358720)];
+  const recent=[...G].filter(g=>g.h).sort((a,b)=>a.lt-b.lt).slice(0,5);
+  const backlog=G.filter(g=>!g.h&&playable(g)||g.prog==='Backlog'&&g.h>0);
+  const added=[2358720,1551360,782330,1593500,814380,1623730,1174180,632470].map(game);
+  const rpg=G.filter(g=>g.g.includes('RPG')||g.g.includes('Soulslike'));
+  const cat=g=>g.st==='Downloading'?'Downloading now':g.h?'Continue playing':'Up next';
+  return `<section class="hero" id="hero">${heroes.map((g,i)=>`<div class="slide ${i===S.hero?'on':''}" data-slide="${i}" style="--c:${g.c}">${art(g,'library_hero.jpg')}
+    <div class="herotext"><div class="kicker"><span class="pulse"></span>${cat(g)}</div>${logo(g)}<div class="meta"><span><b>${fmtH(g.h)}</b></span><span>${esc(g.g.slice(0,2).join(' · '))}</span><span>${esc(g.dev)}</span></div>
+    <p>${esc(g.cb||g.d)}</p><div class="herobtns">${playBtn(g,true)}<button class="btn" style="height:52px" data-go="game:${g.id}">Game details</button></div></div></div>`).join('')}
+    <div class="thumbs">${heroes.map((g,i)=>`<button class="thumb ${i===S.hero?'on':''}" data-hero="${i}">${art(g)}<span><b>${esc(g.n)}</b><small>${fmtH(g.h)}</small></span><u></u></button>`).join('')}</div></section>
+  <div class="page" style="padding-top:0">
+   ${UP.length?`<section class="shelf" style="margin-top:6px"><div class="shelfhead"><h2>Updates available</h2><span>${UP.length} new version${UP.length>1?'s':''} found in your sources</span><button data-act="updateall">Update all</button></div><div class="row" style="--w:310px">${UP.map(updCard).join('')}</div></section>`:''}
+   <section class="shelf" style="margin-top:${UP.length?30:6}px"><div class="shelfhead"><h2>Jump back in</h2><span>Your recent sessions</span><button data-go="library">See library</button></div><div class="row" style="--w:310px">${recent.map(cont).join('')}</div></section>
+   <section class="shelf"><div class="shelfhead"><h2>New in your library</h2><span>Downloaded or on the way</span></div><div class="row">${added.map(capsule).join('')}</div></section>
+   <section class="shelf"><div class="shelfhead"><h2>Because you play RPGs</h2><span>Based on your ${G.filter(g=>g.g.includes('RPG')).reduce((a,g)=>a+g.h,0)} hours in the genre</span></div><div class="row">${rpg.map(capsule).join('')}</div></section>
+   <section class="shelf"><div class="shelfhead"><h2>Clear the backlog</h2><span>${backlog.length} games waiting</span></div><div class="row" style="--w:310px">${backlog.map(cont).join('')}</div></section>
+  </div>`;
+},
+library(){
+  const L=S.lib;
+  const colls=[['All games',()=>1],['Favourites',g=>g.fav],['Updates',g=>UP.some(u=>u.id===g.id)],['Installed',playable],['Playing',g=>g.prog==='Playing'],['Backlog',g=>g.prog==='Backlog'],['Finished',g=>g.prog==='Finished']];
+  const genres=[...new Set(G.flatMap(g=>g.g))].sort();
+  const test=n=>{const c=colls.find(x=>x[0]===n);return c?c[1]:g=>g.g.includes(n)};
+  const list=G.filter(test(L.coll)).sort({recent:(a,b)=>a.lt-b.lt,name:(a,b)=>a.n.localeCompare(b.n),hours:(a,b)=>b.h-a.h,size:(a,b)=>b.z-a.z,year:(a,b)=>b.y-a.y}[L.sort]);
+  const groups={};
+  for(const g of list){const k=L.group==='none'?'':L.group==='status'?g.prog:L.group==='genre'?g.g[0]:g.dev;(groups[k]=groups[k]||[]).push(g)}
+  const body=L.mode==='list'?`<table class="tbl"><thead><tr><th></th><th>Name</th><th>Status</th><th>Genre</th><th>Played</th><th>Last played</th><th>Size</th></tr></thead><tbody>${list.map(g=>`<tr data-go="game:${g.id}" data-gid="${g.id}"><td>${art(g,'header.jpg')}</td><td><b>${esc(g.n)}</b></td><td>${esc(g.st)}</td><td>${esc(g.g[0])}</td><td>${fmtH(g.h)}</td><td>${esc(g.l)}</td><td>${g.z} GB</td></tr>`).join('')}</tbody></table>`
+   :Object.entries(groups).map(([k,a])=>`${k?`<div class="grouph"><h2>${esc(k)}</h2><span>${a.length} games</span></div>`:''}<div class="grid">${a.map(L.mode==='wide'?cont:capsule).join('')}</div>`).join('');
+  return `<div class="libgrid"><aside class="libside">
+    <div class="side-h">Collections</div>${colls.map(([n,f])=>`<button class="sideitem ${L.coll===n?'on':''}" data-coll="${n}">${n}<span>${G.filter(f).length}</span></button>`).join('')}
+    <div class="side-h">Genres</div>${genres.slice(0,9).map(n=>`<button class="sideitem ${L.coll===n?'on':''}" data-coll="${esc(n)}">${esc(n)}<span>${G.filter(g=>g.g.includes(n)).length}</span></button>`).join('')}
+    <div class="side-h">All games</div>${[...G].sort((a,b)=>a.n.localeCompare(b.n)).map(g=>`<button class="minigame" data-go="game:${g.id}" data-gid="${g.id}">${art(g,'header.jpg')}<span>${esc(g.n)}</span></button>`).join('')}
+   </aside><div class="libmain" style="--card:${L.size}px"><div class="tools"><h1>${esc(L.coll)}<small>${list.length} games</small></h1><span class="spacer"></span>
+    <label class="sizer">Group<select class="select" data-lib="group">${[['none','None'],['status','Status'],['genre','Genre'],['dev','Developer']].map(([v,t])=>`<option value="${v}" ${L.group===v?'selected':''}>${t}</option>`).join('')}</select></label>
+    <label class="sizer">Sort<select class="select" data-lib="sort">${[['recent','Recently played'],['name','Name'],['hours','Playtime'],['size','Size'],['year','Release year']].map(([v,t])=>`<option value="${v}" ${L.sort===v?'selected':''}>${t}</option>`).join('')}</select></label>
+    <div class="seg">${[['grid','Covers'],['wide','Banners'],['list','Details']].map(([v,t])=>`<button class="${L.mode===v?'on':''}" data-mode="${v}">${t}</button>`).join('')}</div>
+    ${L.mode==='grid'?`<label class="sizer">Size<input type="range" min="130" max="260" value="${L.size}" data-lib="size" aria-label="Cover size"></label>`:''}</div>${body||'<p style="color:var(--t3);padding:40px">No games in this collection yet.</p>'}</div></div>`;
+},
+game(id){
+  const g=game(id);
+  if(!g)return '<div class="page">That game is no longer in your library.</div>';
+  const tabs=['Overview','Achievements','Files','Saves','Launch settings'];
+  const main={Overview:overview,Achievements:achievements,Files:files,Saves:saves,'Launch settings':launch}[S.gtab](g);
+  return `<div style="--c:${g.c}"><section class="ghero">${art(g,'library_hero.jpg')}${logo(g)}</section>
+  <div class="actionbar">${playBtn(g,true)}<div class="timeplayed"><small>Time played</small><span>Last two weeks: ${g.h&&g.lt<=14?(g.id%200)+40+' min':'None'}</span><span>Total: ${g.h?g.h.toLocaleString()+' hrs':'None'}</span></div><div class="stat"><small>Last played</small><b>${esc(g.l)}</b></div><div class="stat"><small>On disk</small><b>${g.z} GB</b></div><div class="stat"><small>State</small><b>${esc(g.st)}</b></div>
+  <div class="right"><button class="iconbtn ${g.fav?'on':''}" data-act="fav" data-id="${g.id}">${g.fav?'♥ Favourite':'♡ Favourite'}</button><button class="iconbtn" data-act="folder">Open folder</button></div></div>
+  <div class="gtabs">${tabs.map(t=>`<button class="${S.gtab===t?'on':''}" data-gtab="${t}">${t}</button>`).join('')}</div>${main}</div>`;
+},
+catalogue(){
+  const genres=['All',...new Set(CAT.flatMap(c=>c.g))].slice(0,9);
+  return `<div class="catgrid"><div class="catmain"><div class="cathead"><div><h1>Catalogue</h1><p>${SOURCES.filter(s=>s.on).reduce((a,s)=>a+s.games,0).toLocaleString()} listings from ${sourcesOn().length} of your sources</p></div></div>
+   <input class="catsearch" id="catsearch" aria-label="Search the catalogue" placeholder="Search by game, developer, or genre" value="${esc(S.cat.q)}">
+   <div class="chips catfilters">${genres.map(t=>`<button class="chip ${S.cat.genre===t?'on':''}" data-catgenre="${esc(t)}">${esc(t)}</button>`).join('')}</div>
+   <div class="grid" id="catresults">${catCards()}</div></div>
+  <aside class="catside"><div class="side-h" style="padding-left:0">Your sources</div>${SOURCES.map((s,i)=>`<div class="source"><button class="switch ${s.on?'on':''}" data-source="${i}">${esc(s.name)}<i></i></button><small>${esc(s.url)}</small><small>${s.games.toLocaleString()} games · Checked ${esc(s.last)} · <span class="${s.status==='Checking'?'chk':'ok'}">${esc(s.status)}</span></small></div>`).join('')}
+   <div class="side-h" style="padding-left:0;margin-top:8px">Add a source</div><input class="field" id="srcurl" aria-label="Source list URL" placeholder="https://example.com/list.json"><div class="err" id="srcerr"></div><div style="display:flex;gap:7px"><button class="btn sm play" data-act="addsource">Add source</button><button class="btn sm" data-act="refreshsources">Check all now</button></div></aside></div>`;
+},
+downloads(){
+  const act=D.find(d=>d.stage!=='Queued'&&!['Seeding','Needs exe'].includes(d.stage)&&d.stage==='Download')||D.find(d=>!['Queued','Seeding','Needs exe'].includes(d.stage));
+  const rest=D.filter(d=>d!==act);
+  const up=rest.filter(d=>!['Seeding','Needs exe'].includes(d.stage));
+  const attn=rest.filter(d=>d.stage==='Needs exe');
+  const seeding=rest.filter(d=>d.stage==='Seeding');
+  return `<div class="dlwrap"><div class="net"><div><div class="nethead"><span class="legend"><i style="background:var(--go)"></i>Download</span><b id="netd">0 MB/s</b><span class="legend"><i style="background:var(--info)"></i>Upload</span><b id="netu">0 MB/s</b><span style="margin-left:auto">Last 2.5 minutes</span></div><canvas id="graph"></canvas></div>
+    <div class="netside"><div class="kv">Peers<b id="netp">0</b></div><div class="kv">Disk write<b>182 MB/s</b></div><div class="kv">All-time ratio<b>1.28</b></div><div class="kv">Speed limit<b><select class="select" style="height:24px" data-act-sel="limit" aria-label="Speed limit"><option>Unlimited</option><option>50 MB/s</option><option>10 MB/s</option></select></b></div></div></div>
+  ${act?activeCard(act):''}
+  ${attn.length?section('Needs you',attn):''}${up.length?section('Up next',up,'Drag to reorder'):''}${seeding.length?section('Seeding',seeding):''}</div>`;
+},
+stats(){
+  const total=G.reduce((a,g)=>a+g.h,0),size=G.reduce((a,g)=>a+g.z,0),played=G.filter(g=>g.h),fin=G.filter(g=>g.prog==='Finished').length;
+  const r=rng(7),cells=Array.from({length:371},()=>{const x=r();return x<.42?0:x<.62?1:x<.82?2:x<.94?3:4});
+  const gs={};G.forEach(g=>{gs[g.g[0]]=(gs[g.g[0]]||0)+g.h});
+  const pie=Object.entries(gs).filter(x=>x[1]).sort((a,b)=>b[1]-a[1]).slice(0,5),cols=['#6CBF2E','#5AB6FF','#FFB547','#FF6B6B','#C56DFF'];
+  const ps=pie.reduce((a,x)=>a+x[1],0);let off=0;
+  const arcs=pie.map(([k,v],i)=>{const len=v/ps*100,c=`<circle r="15.9" cx="20" cy="20" fill="none" stroke="${cols[i]}" stroke-width="5" pathLength="100" stroke-dasharray="${len-.7} ${100-len+.7}" stroke-dashoffset="${-off}"/>`;off+=len;return c}).join('');
+  const top=[...G].sort((a,b)=>b.h-a.h).slice(0,7),max=top[0].h;
+  return `<div class="page"><h1 style="font-size:40px;margin-bottom:14px">Your gaming year</h1><div class="tiles">
+    <div class="tile"><span>Total playtime</span><b>${total.toLocaleString()} h</b><small>About ${Math.round(total/24)} days</small></div>
+    <div class="tile"><span>Games played</span><b>${played.length} of ${G.length}</b><small>${fin} finished</small></div>
+    <div class="tile"><span>Longest streak</span><b>23 days</b><small>Elden Ring, March</small></div>
+    <div class="tile"><span>Library size</span><b>${(size/1000).toFixed(2)} TB</b><small>On E:\\Games</small></div>
+    <div class="tile"><span>Data seeded</span><b>1.9 TB</b><small>Ratio 1.28</small></div>
+    <div class="tile"><span>Achievements</span><b>${G.map(ach).filter(Boolean).reduce((a,x)=>a+x.got,0)}</b><small>Across ${G.filter(g=>ach(g)?.got).length} games</small></div></div>
+   <div class="statgrid"><div><div class="panel"><h3>Play activity</h3><div class="heat" aria-label="Daily play activity">${cells.map(c=>`<i class="l${c}"></i>`).join('')}</div></div>
+    <div class="panel"><h3>Disk usage by game</h3><div class="disk">${[...G].sort((a,b)=>b.z-a.z).slice(0,9).map(g=>`<a data-go="game:${g.id}" title="${esc(g.n)}, ${g.z} GB" style="flex:${g.z};cursor:pointer;min-width:0">${art(g,'header.jpg').replace('class="art ','style="height:100%" class="art ').replace(/ style="--c/,' style="height:100%;--c')}</a>`).join('')}</div><p style="margin-top:9px;font-size:12.5px">Your biggest game is ${esc([...G].sort((a,b)=>b.z-a.z)[0].n)}. Games you haven't played in six months use 156 GB.</p></div></div>
+    <div><div class="panel"><h3>Time by genre</h3><div style="display:flex;gap:16px;align-items:center"><svg viewBox="0 0 40 40" width="130" height="130" style="transform:rotate(-90deg);flex:none" role="img" aria-label="Playtime by genre">${arcs}</svg><div style="flex:1">${pie.map(([k,v],i)=>`<div class="legendrow"><span><i style="background:${cols[i]}"></i>${esc(k)}</span><span>${v} h</span></div>`).join('')}</div></div></div>
+    <div class="panel"><h3>Most played</h3>${top.map(g=>`<div class="topg" data-go="game:${g.id}" data-gid="${g.id}">${art(g)}<div><b>${esc(g.n)}</b><div class="tinybar"><i style="width:${g.h/max*100}%"></i></div></div><span style="text-align:right;color:var(--t2)">${g.h} h</span></div>`).join('')}</div></div></div></div>`;
+}};
+
+function overview(g){
+  const r=rng(g.id),bars=Array.from({length:30},()=>g.h?Math.pow(r(),2.2)*100:0);
+  return `<div class="gbody"><div>
+   <div class="panel"><h3>About this game</h3><p>${esc(g.d)}</p></div>
+   <div class="panel" style="--c:${g.c}"><h3>Play sessions, last 30 days</h3><div class="sessions">${bars.map(b=>`<i style="height:${b}%"></i>`).join('')}</div></div>
+   <div class="panel"><h3>Your notes</h3><textarea class="field" style="height:82px;padding:9px;resize:vertical" aria-label="Notes" placeholder="Add a build, a mod list, or where you left off">${esc(g.cb||'')}</textarea></div>
+  </div><aside>
+   <div class="panel"><h3>Your progress</h3><div class="chips" style="--c:${g.c}">${['Playing','Backlog','Finished','Dropped'].map(p=>`<button class="chip ${g.prog===p?'on':''}" data-prog="${p}" data-id="${g.id}">${p}</button>`).join('')}</div><div class="stars" style="margin-top:9px" aria-label="Your rating">${[1,2,3,4,5].map(n=>`<button class="${n<=g.r?'on':''}" data-rate="${n}" data-id="${g.id}" aria-label="${n} stars">★</button>`).join('')}</div></div>
+   <div class="panel"><h3>Details</h3><div class="kv">Developer<b>${esc(g.dev)}</b></div><div class="kv">Released<b>${g.y}</b></div><div class="kv">Modes<b>${esc(g.pl)}</b></div><div class="kv">Install health<b style="color:var(--go)">${playable(g)?'All files OK':'Waiting'}</b></div><div style="margin-top:9px">${g.g.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div></div>
+  </aside></div>`;
+}
+function achievements(g){
+  const a=ach(g);
+  if(!a)return `<div class="gbody"><div class="panel"><h3>Achievements aren't tracked for this game</h3><p>GaLa can't read this game's progress, so it shows your play history instead.</p><div style="margin-top:12px"><div class="kv">Playtime<b>${fmtH(g.h)}</b></div><div class="kv">Last played<b>${esc(g.l)}</b></div><div class="kv">Progress<b>${esc(g.prog)}</b></div></div></div></div>`;
+  const p=Math.round(a.got/a.total*100);
+  return `<div class="gbody"><div class="panel" style="--c:${g.c}"><h3>Achievements</h3>${a.list.map(x=>`<div class="ach ${x.on?'':'off'}"><i aria-hidden="true">${x.on?'★':'☆'}</i><div><b>${esc(x.n)}</b><small>${esc(x.d)}</small></div><em>${x.on?'Unlocked':'Locked'}</em></div>`).join('')}</div>
+  <aside><div class="panel" style="--c:${g.c}"><div class="achsum"><div class="achring" style="--p:${p}"><span>${p}%</span></div><div><h3 style="margin:0">${a.got} of ${a.total}</h3><p>Read from this game's progress files.</p></div></div></div></aside></div>`;
+}
+function files(g){
+  const upd=UP.find(u=>u.id===g.id);
+  return `<div class="gbody"><div><div class="panel"><h3>Version</h3><div class="kv">Installed<b>${esc(upd?.cur||VER[g.id]||'1.0')}</b></div><div class="kv">Latest in your sources<b style="${upd?'color:var(--go)':''}">${esc(upd?.nw||VER[g.id]||'1.0')}</b></div>${upd?`<div class="kv">Update size<b>${upd.size} GB from ${esc(upd.src)}</b></div>`:''}</div><div class="panel"><h3>Install</h3><div class="path">E:\\Games\\${esc(g.n)}</div><div style="display:flex;gap:7px;margin-top:10px;flex-wrap:wrap"><button class="btn sm" data-act="verify">Verify files</button><button class="btn sm" data-act="move">Move to another drive</button><button class="btn sm" data-act="uninstall" style="color:var(--bad)">Uninstall</button></div></div>
+  <div class="panel"><h3>Largest folders</h3>${[['content',.72],['shaders',.15],['movies',.09],['bin',.04]].map(([n,p])=>`<div class="kv">${n}<b>${Math.max(1,Math.round(g.z*p))} GB</b></div>`).join('')}</div></div>
+  <aside><div class="panel"><h3>Torrent</h3><div class="kv">Source<b>Magnet link</b></div><div class="kv">Original size<b>${Math.round(g.z*.72)} GB</b></div><div class="kv">Ratio<b>${g.st==='Seeding'?'1.42':'Stopped'}</b></div><div class="kv">Added<b>Oct ${(g.id%27)+1}</b></div></div></aside></div>`;
+}
+function saves(g){
+  return `<div class="gbody"><div class="panel"><h3>Save backups</h3>${['Today, 21:14','Yesterday, 23:02','Oct 26, 19:47','Oct 21, 22:30'].map((t,i)=>`<div class="savet"><i></i><div>${t}<small>${i?'After play session':'Latest automatic backup'}, ${(6.1-i*.4).toFixed(1)} MB</small></div><button class="btn sm" data-act="restore">Restore</button></div>`).join('')}</div>
+  <aside><div class="panel"><h3>Backup settings</h3><button class="switch on" data-toggle>Back up after every session<i></i></button><button class="switch on" data-toggle>Keep the last 20 backups<i></i></button><div class="sect" style="margin-top:10px;color:var(--t3)">Saves found in</div><div class="path">%LOCALAPPDATA%\\${esc(g.n)}\\Saved</div></div></aside></div>`;
+}
+function launch(g){
+  const exe=esc(g.n.replace(/\W/g,''));
+  return `<div class="gbody"><div><div class="panel"><h3>Game file</h3><div class="path">E:\\Games\\${esc(g.n)}\\${exe}.exe</div><div style="margin-top:10px"><button class="btn sm" data-act="pickexe" data-id="${g.id}">Change file</button></div></div>
+  <div class="panel"><h3>Launch options</h3><input class="field" aria-label="Launch options" placeholder="-dx12 -skipintro"></div></div>
+  <aside><div class="panel"><h3>Before launch</h3><button class="switch" data-toggle>Pause downloads while playing<i></i></button><button class="switch on" data-toggle>Stop seeding while playing<i></i></button><button class="switch" data-toggle>Run as administrator<i></i></button><button class="switch" data-toggle>Show FPS overlay<i></i></button></div></aside></div>`;
+}
+const fmtEta=d=>{if(d.stage!=='Download'||!d.down)return d.stage==='Extract'?Math.ceil((100-d.p)/8)+' min':'-';const z=game(d.id).z,m=Math.ceil(z*1024*(100-d.p)/100/d.down/60);return m>59?`${Math.floor(m/60)} h ${m%60} min`:m+' min'};
+function activeCard(d){
+  const g=game(d.id),i=STAGES.indexOf(d.stage),z=(g.z*d.p/100).toFixed(1);
+  return `<section class="active" style="--c:${g.c}"><div class="glow" style="background-image:url('${CDN+g.id}/library_hero.jpg')"></div>${art(g,'header.jpg')}<div><div class="activehead"><h2>${esc(g.n)}</h2><button class="btn sm" data-pause="${g.id}">${d.paused?'Resume':'Pause'}</button><button class="btn sm" data-act="cancel" data-id="${g.id}">Cancel</button></div>
+  <div class="dlsub"><span><b data-live="pct">${Math.floor(d.p)}%</b> ${esc(d.stage)}</span><span><b data-live="done">${z}</b> of ${g.z} GB</span><span><b data-live="speed">${d.down.toFixed(1)}</b> MB/s</span><span><b data-live="eta">${fmtEta(d)}</b> left</span><span><b>${d.peers}</b> peers, <b>${d.seeds}</b> seeds</span></div>
+  <div class="bigbar"><i data-live="bar" style="width:${d.p}%"></i></div><div class="steps">${STAGES.map((s,n)=>`<span class="${n<i?'done':n===i?'now':''}">${s}</span>`).join('')}</div></div></section>`;
+}
+function section(title,items,hint){
+  return `<div class="shelf" style="margin-top:22px"><div class="shelfhead"><h2>${title}</h2><span>${hint||''}</span></div><div style="border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--s1)">${items.map(q=>{
+    const g=game(q.id),attn=q.stage==='Needs exe',open=S.dlopen===q.id;
+    return `<div class="qitem ${open?'open':''}" data-q="${q.id}" data-gid="${q.id}" draggable="${q.stage==='Queued'}"><span class="grip">${q.stage==='Queued'?'⋮⋮':''}</span>${art(g,'header.jpg')}<div><b>${esc(g.n)}</b><small>${g.z} GB</small></div>
+    <div class="h"><div class="tinybar"><i style="width:${q.p}%"></i></div></div><small class="h">${q.stage==='Seeding'?`Ratio ${q.ratio}, ${q.up.toFixed(1)} MB/s up`:esc(q.stage)}</small>
+    ${attn?`<button class="btn sm play warn" data-act="pickexe" data-id="${g.id}">Finish setup</button>`:q.stage==='Queued'?`<button class="btn sm" data-first="${g.id}">Start next</button>`:`<button class="btn sm" data-pause="${g.id}">${q.paused?'Resume':'Pause'}</button>`}</div>${open?detail(q):''}`}).join('')}</div></div>`;
+}
+function detail(q){
+  const r=rng(q.id+1);
+  const peers=[['Germany','qBittorrent 5.1'],['Japan','libtorrent 2.0'],['Canada','Transmission 4.0'],['Brazil','Deluge 2.1'],['India','qBittorrent 5.0']];
+  const body={Peers:peers.map(p=>`<div class="peer"><span>${p[0]}</span><span>${p[1]}</span><span>${(r()*9).toFixed(1)} MB/s</span><span>${Math.round(r()*100)}% done</span></div>`).join(''),
+   Files:['Game data 1.bin','Game data 2.bin','Setup.exe','Redist folder'].map((f,i)=>`<div class="kv">${f}<b>${[61,33,1,5][i]}%</b></div>`).join(''),
+   Trackers:'<div class="kv">DHT<b>412 nodes</b></div><div class="kv">Peer exchange<b>Working</b></div><div class="kv">Local discovery<b>Working</b></div>',
+   Pieces:`<canvas class="piecemap" id="pieces" data-p="${q.p}"></canvas>`}[S.dlsub];
+  return `<div class="detail"><div class="subt">${['Peers','Files','Trackers','Pieces'].map(t=>`<button class="${S.dlsub===t?'on':''}" data-sub="${t}">${t}</button>`).join('')}</div>${body}</div>`;
+}
+
+function render(reset=true){
+  const v=$('#view'),top=v.scrollTop;
+  v.classList.toggle('flat',S.view==='library'||S.view==='catalogue');
+  v.innerHTML=pages[S.view](S.param);
+  $$('.nav').forEach(n=>n.classList.toggle('on',n.dataset.go===S.view||(S.view==='game'&&n.dataset.go==='library')));
+  v.style.animation='none';v.offsetHeight;v.style.animation='';
+  if(reset)v.scrollTop=0;else v.scrollTop=top;
+  ambient();drawGraph();drawPieces();
+}
+function ambient(){
+  const g=S.view==='game'?game(S.param):S.view==='home'?[game(1091500),game(1245620),game(1086940),game(2358720)][S.hero]:null;
+  document.documentElement.style.setProperty('--amb',g?g.c:'#5AB6FF');
+  $('#ambient').style.backgroundImage=g&&g.art!==false?`url('${CDN+g.id}/library_hero.jpg')`:'none';
+}
+function go(to,push=true){
+  const [v,p]=to.split(':');
+  if(push&&(S.view!==v||S.param!=p)){S.hist.push(S.view+(S.param?':'+S.param:''));S.fwd=[]}
+  if(v==='game'&&S.param!=p)S.gtab='Overview';
+  S.view=v;S.param=p||null;render();
+}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('open');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('open'),2800)}
+function play(id){
+  const g=game(id);
+  if(S.run){toast('Close '+game(S.run.id).n+' first');return}
+  toast('Launching '+g.n);S.run={id:g.id,t:Date.now()};g.l='Today';g.lt=0;closeCouch();nowPlaying();render(false);
+}
+function stop(){const g=game(S.run.id);toast('Session saved for '+g.n);S.run=null;nowPlaying();render(false)}
+function nowPlaying(){
+  const n=$('#nowplaying');n.hidden=!S.run;if(!S.run)return;
+  const g=game(S.run.id);
+  n.innerHTML=`<img src="${CDN+g.id}/header.jpg" alt=""><div><b>${esc(g.n)}</b><small><span class="pulse" style="display:inline-block;margin-right:6px"></span>Playing for <span id="elapsed">0:00</span>. Seeding is paused to protect your FPS.</small></div><button class="btn sm" data-go="game:${g.id}" style="margin-left:auto">Game page</button><button class="btn sm play stop" data-stop="1">Stop game</button>`;
+}
+function dlPill(){
+  const a=D.find(d=>d.stage==='Download')||D.find(d=>['Verify','Extract','Install','Detect'].includes(d.stage));
+  const net=D.reduce((x,d)=>x+d.down,0);
+  $('#dlpill').innerHTML=a?`<span class="ring" style="--p:${a.p}"></span><span><b>${esc(game(a.id).n.slice(0,19))}</b><small>${a.stage==='Download'?net.toFixed(1)+' MB/s':esc(a.stage)} · ${Math.floor(a.p)}%</small></span>`:`<span class="ring" style="--p:100"></span><span><b>All done</b><small>Nothing downloading</small></span>`;
+  const up=D.reduce((x,d)=>x+d.up,0),pe=D.reduce((x,d)=>x+d.peers,0);
+  $('#footer').innerHTML=`<span class="ok">● Connected</span><span>↓ ${net.toFixed(1)} MB/s</span><span>↑ ${up.toFixed(1)} MB/s</span><span>${pe} peers</span><span>DHT 412 nodes</span><span class="end">E: 409 GB free · C: 46 GB free · ${G.length} games</span>`;
+  const set=(k,v)=>{const e=$('#'+k);if(e)e.textContent=v};
+  set('netd',net.toFixed(1)+' MB/s');set('netu',up.toFixed(1)+' MB/s');set('netp',pe);
+}
+function drawGraph(){
+  const c=$('#graph');if(!c)return;
+  const w=c.clientWidth,h=c.clientHeight,r=devicePixelRatio||1;c.width=w*r;c.height=h*r;const x=c.getContext('2d');x.scale(r,r);
+  const pts=S.graph,max=Math.max(30,...pts.map(p=>p[0]))*1.15,X=i=>i/(pts.length-1)*w,Y=v=>h-v/max*(h-6);
+  x.strokeStyle='rgba(255,255,255,.06)';for(let i=1;i<4;i++){x.beginPath();x.moveTo(0,h*i/4);x.lineTo(w,h*i/4);x.stroke()}
+  const line=(k,col,fill)=>{x.beginPath();pts.forEach((p,i)=>i?x.lineTo(X(i),Y(p[k])):x.moveTo(0,Y(p[k])));x.strokeStyle=col;x.lineWidth=2;x.stroke();if(fill){x.lineTo(w,h);x.lineTo(0,h);x.closePath();const g=x.createLinearGradient(0,0,0,h);g.addColorStop(0,fill);g.addColorStop(1,'transparent');x.fillStyle=g;x.fill()}};
+  line(0,'#6CBF2E','rgba(108,191,46,.33)');line(1,'#5AB6FF','rgba(90,182,255,.15)');
+}
+function drawPieces(){
+  const c=$('#pieces');if(!c)return;
+  const w=c.clientWidth,h=c.clientHeight;c.width=w;c.height=h;const x=c.getContext('2d'),r=rng(4),p=+c.dataset.p,s=6;
+  for(let j=0;j<h/s;j++)for(let i=0;i<w/s;i++){const v=r()*100;x.fillStyle=v<p?'#529A29':v<p+6?'#FFB547':'rgba(255,255,255,.08)';x.fillRect(i*s,j*s,s-1,s-1)}
+}
+function pickExe(id){
+  const g=game(id),b=g.n.replace(/\W/g,'');
+  openAdd(`<h2>Which file starts ${esc(g.n)}?</h2><p style="color:var(--t2);margin:0 0 10px">GaLa ranked these by size, name and folder.</p>
+   ${[[b+'.exe','Best match, 86 MB'],['bin\\'+b+'_launcher.exe','Launcher, 12 MB'],['_redist\\vcredist_x64.exe','Likely not the game']].map(([f,n])=>`<button class="res" data-pick="${g.id}"><span class="path" style="padding:3px 7px">${esc(f)}</span><small>${n}</small></button>`).join('')}
+   <div class="foot"><button class="btn sm" data-close>Cancel</button></div>`);
+}
+function openAdd(html){$('#addBox').innerHTML=html;$('#addOv').classList.add('open')}
+function addDialog(){
+  const t=S.addTab;
+  const body={Magnet:'<textarea id="mag" aria-label="Magnet link" placeholder="magnet:?xt=urn:btih:..."></textarea>','Torrent file':'<button class="drop" data-act="fakefile">Drop a .torrent file here, or click to browse</button>','Existing folder':'<button class="drop" data-act="fakefile">Choose a game folder already on your PC</button>'}[t];
+  openAdd(`<h2>Add a game</h2><div class="seg" style="display:inline-flex;margin-bottom:11px">${['Magnet','Torrent file','Existing folder'].map(x=>`<button class="${x===t?'on':''}" data-addtab="${x}">${x}</button>`).join('')}</div>${body}<div class="err" id="err"></div><div class="foot"><button class="btn sm" data-close>Cancel</button><button class="btn sm play" data-act="addgo">Add to library</button></div>`);
+  $('#mag')?.focus();
+}
+function closeAll(){$$('.overlay').forEach(o=>o.classList.remove('open'));$('#ctx').classList.remove('open')}
+function openPalette(){$('#paletteOv').classList.add('open');const i=$('#pinput');i.value='';results();i.focus()}
+let palIdx=0,palItems=[];
+function results(){
+  const q=$('#pinput').value.toLowerCase();
+  const cmds=[['Open catalogue',()=>go('catalogue')],['Check for updates',()=>toast('Checking your sources for updates')],['Open downloads',()=>go('downloads')],['Open stats',()=>go('stats')],['Add a magnet link',addDialog],['Enter couch mode',openCouch]];
+  palItems=[...G.filter(g=>g.n.toLowerCase().includes(q)||g.g.some(t=>t.toLowerCase().includes(q))).slice(0,6).map(g=>({g,fn:()=>go('game:'+g.id)})),...cmds.filter(c=>c[0].toLowerCase().includes(q)).map(c=>({t:c[0],fn:c[1]}))];
+  palIdx=Math.min(palIdx,Math.max(0,palItems.length-1));
+  $('#results').innerHTML=palItems.map((p,i)=>`<button class="res ${i===palIdx?'on':''}" data-res="${i}">${p.g?art(p.g,'header.jpg')+`<span>${esc(p.g.n)}</span><small>${esc(p.g.st)}</small>`:`<span>${esc(p.t)}</span><small>Action</small>`}</button>`).join('')||'<p style="color:var(--t3);padding:12px">Nothing matches that search.</p>';
+}
+function ctx(e,id){
+  const g=game(id),m=$('#ctx');
+  m.innerHTML=`${playable(g)?`<button data-play="${g.id}">Play</button>`:''}<button data-go="game:${g.id}">Game page</button><hr><button data-act="fav" data-id="${g.id}">${g.fav?'Remove from favourites':'Add to favourites'}</button>${['Playing','Backlog','Finished'].map(p=>`<button data-prog="${p}" data-id="${g.id}">Mark as ${p.toLowerCase()}</button>`).join('')}<hr><button data-act="verify">Verify files</button><button data-act="folder">Open folder</button><button class="bad" data-act="uninstall">Uninstall</button>`;
+  m.style.left=Math.min(e.clientX,innerWidth-230)+'px';m.style.top=Math.min(e.clientY,innerHeight-310)+'px';m.classList.add('open');
+}
+let cIdx=0;
+const couchList=()=>[...G].filter(playable).sort((a,b)=>a.lt-b.lt);
+function openCouch(){cIdx=0;closeAll();$('#couch').classList.add('open');couch()}
+function closeCouch(){$('#couch').classList.remove('open')}
+function couch(){
+  const l=couchList(),g=l[cIdx];
+  $('#couch').innerHTML=`<div class="bg">${art(g,'library_hero.jpg').replace('class="art ','style="position:absolute;inset:0" class="art ').replace(/ style="--c/,' style="position:absolute;inset:0;--c')}</div><div class="txt">${logo(g)}<p>${fmtH(g.h)} · ${esc(g.l)}</p></div>
+  <div class="ctiles" style="transform:translateX(${-cIdx*186}px)">${l.map((x,i)=>`<div class="ctile ${i===cIdx?'on':''}">${art(x)}</div>`).join('')}</div><div class="hint"><span><kbd>← →</kbd> Choose</span><span><kbd>Enter</kbd> Play</span><span><kbd>Esc</kbd> Exit</span></div>`;
+}
+function setHero(i){S.hero=i;$$('.slide').forEach((s,n)=>s.classList.toggle('on',n===i));$$('.thumb').forEach((s,n)=>s.classList.toggle('on',n===i));ambient()}
+const stateName={Download:'Downloading',Verify:'Verifying',Extract:'Extracting',Install:'Installing',Detect:'Detecting',Queued:'Queued'};
+
+document.addEventListener('click',e=>{
+  const t=e.target,c=s=>t.closest(s);let x;
+  if(!c('#ctx'))$('#ctx').classList.remove('open');
+  if(t.classList.contains('overlay')){closeAll();return}
+  if(c('[data-close]')){closeAll();return}
+  if(x=c('[data-res]')){const f=palItems[+x.dataset.res].fn;closeAll();f();return}
+  if(x=c('[data-stop]')){stop();return}
+  if(x=c('[data-play]')){e.stopPropagation();play(+x.dataset.play);return}
+  if(x=c('[data-pick]')){const g=game(x.dataset.pick);g.st='Installed';D=D.filter(d=>d.id!==g.id);closeAll();toast(g.n+' is ready to play');render(false);dlPill();return}
+  if(x=c('[data-addtab]')){S.addTab=x.dataset.addtab;addDialog();return}
+  if(x=c('[data-hero]')){setHero(+x.dataset.hero);return}
+  if(x=c('[data-coll]')){S.lib.coll=x.dataset.coll;render(false);return}
+  if(x=c('[data-mode]')){S.lib.mode=x.dataset.mode;render(false);return}
+  if(x=c('[data-gtab]')){S.gtab=x.dataset.gtab;render(false);return}
+  if(x=c('[data-prog]')){game(x.dataset.id).prog=x.dataset.prog;closeAll();toast('Marked as '+x.dataset.prog.toLowerCase());render(false);return}
+  if(x=c('[data-rate]')){game(x.dataset.id).r=+x.dataset.rate;render(false);return}
+  if(x=c('[data-toggle]')){x.classList.toggle('on');return}
+  if(x=c('[data-pause]')){const d=D.find(q=>q.id==x.dataset.pause);d.paused=!d.paused;if(d.paused)d.down=0;render(false);dlPill();return}
+  if(x=c('[data-first]')){const d=D.find(q=>q.id==x.dataset.first);D=D.filter(q=>q!==d);const i=D.findIndex(q=>q.stage==='Queued');D.splice(i<0?D.length:i,0,d);toast(game(d.id).n+' moved to the top');render(false);return}
+  if(x=c('[data-sub]')){e.stopPropagation();S.dlsub=x.dataset.sub;render(false);return}
+  if(x=c('[data-update]')){const g=game(x.dataset.update);startUpdate(g.id);toast('Update queued for '+g.n);render(false);dlPill();return}
+  if(x=c('[data-catgenre]')){S.cat.genre=x.dataset.catgenre;render(false);return}
+  if(x=c('[data-source]')){const s=SOURCES[+x.dataset.source];s.on=!s.on;render(false);return}
+  if(x=c('[data-getv]')){
+    const [id,i]=x.dataset.getv.split(':'),k=CAT.find(q=>q.id==id),v=k.v[+i];
+    G.unshift({id:k.id,n:k.n,dev:k.dev,y:k.y,g:k.g,pl:'Single player',h:0,l:'Never',lt:99,z:v[2],st:'Queued',c:k.c,prog:'Backlog',r:0,d:k.d});
+    VER[k.id]=v[1];D.push({id:k.id,p:0,stage:'Queued',down:0,up:0,peers:0,seeds:0,paused:false});
+    closeAll();toast(k.n+' added to your queue');render(false);dlPill();return;
+  }
+  if(x=c('[data-cat]')){openVersions(x.dataset.cat);return}
+  if(x=c('[data-act]')){
+    const a=x.dataset.act,id=x.dataset.id;
+    if(a==='updateall'){const n=UP.length;UP.map(u=>u.id).forEach(startUpdate);toast(n+' updates queued');render(false);dlPill()}
+    if(a==='refreshsources'){toast('Checking your sources for new games and updates')}
+    if(a==='addsource'){
+      const inp=$('#srcurl'),v=inp.value.trim();let u=null;
+      try{u=new URL(v)}catch{}
+      if(!u||u.protocol!=='https:'){$('#srcerr').textContent='Enter a link that starts with https://';return}
+      if(SOURCES.some(s=>s.url===v)){$('#srcerr').textContent='That source is already added.';return}
+      SOURCES.push({name:u.hostname,url:v,games:0,last:'Just now',on:true,status:'Checking'});toast('Source added');render(false);
+    }
+    if(a==='back'){const p=S.hist.pop();if(p){S.fwd.push(S.view+(S.param?':'+S.param:''));go(p,false)}}
+    if(a==='forward'){const p=S.fwd.pop();if(p){S.hist.push(S.view+(S.param?':'+S.param:''));go(p,false)}}
+    if(a==='palette')openPalette();
+    if(a==='add')addDialog();
+    if(a==='couch')openCouch();
+    if(a==='fav'){const g=game(id);g.fav=!g.fav;closeAll();render(false)}
+    if(a==='pickexe')pickExe(id);
+    if(a==='verify')toast('Checking files against the torrent');
+    if(a==='folder')toast('Opens the game folder in the real app');
+    if(a==='move')toast('Opens the drive picker in the real app');
+    if(a==='restore')toast('Save restored');
+    if(a==='uninstall')toast('Asks for confirmation in the real app');
+    if(a==='cancel'){const g=game(id);D=D.filter(d=>d.id!==g.id);g.st='Queued';D.push({id:g.id,p:0,stage:'Queued',down:0,up:0,peers:0,seeds:0,paused:false});toast('Moved '+g.n+' back to the queue');render(false);dlPill()}
+    if(a==='fakefile')toast('Opens a file picker in the real app');
+    if(a==='addgo'){
+      if(S.addTab!=='Magnet'){closeAll();return}
+      const v=$('#mag').value.trim();
+      if(!/^magnet:\?/i.test(v)){$('#err').textContent='Paste a link that starts with magnet:?';return}
+      const dn=new URLSearchParams(v.slice(v.indexOf('?')+1)).get('dn')||'New game',id=Date.now();
+      G.unshift({id,n:dn,dev:'Unknown',y:2026,g:['Untagged'],pl:'Unknown',h:0,l:'Never',lt:99,z:20,st:'Downloading',c:'#5A6478',prog:'Backlog',r:0,art:false,d:'GaLa will fill this in after it matches the game.'});
+      D.unshift({id,p:0,stage:'Download',down:14,up:.3,peers:9,seeds:5,paused:false});closeAll();toast('Added to downloads');go('downloads');
+    }
+    return;
+  }
+  if(x=c('[data-q]')){if(c('button,select'))return;S.dlopen=S.dlopen==x.dataset.q?null:+x.dataset.q;render(false);return}
+  if(x=c('[data-go]')){closeAll();go(x.dataset.go)}
+});
+document.addEventListener('change',e=>{const k=e.target.dataset.lib;if(k){S.lib[k]=e.target.value;render(false)}});
+document.addEventListener('input',e=>{
+  if(e.target.id==='pinput'){palIdx=0;results()}
+  if(e.target.id==='catsearch'){S.cat.q=e.target.value;$('#catresults').innerHTML=catCards()}
+  if(e.target.id==='srcurl')$('#srcerr').textContent='';
+  if(e.target.dataset?.lib==='size'){S.lib.size=+e.target.value;$('.libmain').style.setProperty('--card',S.lib.size+'px')}
+  if(e.target.id==='mag')$('#err').textContent='';
+});
+document.addEventListener('contextmenu',e=>{const x=e.target.closest('[data-gid]');if(x){e.preventDefault();ctx(e,x.dataset.gid)}});
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openPalette();return}
+  if($('#couch').classList.contains('open')){
+    const l=couchList();
+    if(e.key==='ArrowRight')cIdx=Math.min(l.length-1,cIdx+1);if(e.key==='ArrowLeft')cIdx=Math.max(0,cIdx-1);
+    if(e.key==='Enter'){play(l[cIdx].id);return}
+    if(e.key==='Escape'){closeCouch();return}
+    couch();return;
+  }
+  if(e.key==='Escape')closeAll();
+  if($('#paletteOv').classList.contains('open')){
+    if(e.key==='ArrowDown'){e.preventDefault();palIdx=Math.min(palItems.length-1,palIdx+1);results()}
+    if(e.key==='ArrowUp'){e.preventDefault();palIdx=Math.max(0,palIdx-1);results()}
+    if(e.key==='Enter'&&palItems[palIdx]){const f=palItems[palIdx].fn;closeAll();f()}
+    return;
+  }
+  if(e.key==='Enter'&&e.target.matches?.('[data-go]:not(button)'))go(e.target.dataset.go);
+});
+let dragId=null;
+document.addEventListener('dragstart',e=>{const q=e.target.closest?.('[data-q]');if(q)dragId=+q.dataset.q});
+document.addEventListener('dragover',e=>{const q=e.target.closest?.('[data-q]');if(q&&dragId){e.preventDefault();$$('.qitem').forEach(i=>i.classList.toggle('over',i===q))}});
+document.addEventListener('drop',e=>{const q=e.target.closest?.('[data-q]');if(!q||!dragId)return;e.preventDefault();const a=D.find(d=>d.id===dragId);D=D.filter(d=>d!==a);const i=D.findIndex(d=>d.id==q.dataset.q);D.splice(i<0?D.length:i,0,a);dragId=null;render(false)});
+
+setInterval(()=>{
+  let rerender=false;
+  const dl=D.find(d=>d.stage==='Download'&&!d.paused);
+  for(const d of D){
+    if(d.paused)continue;
+    const i=STAGES.indexOf(d.stage);
+    if(d.stage==='Download'){d.p=Math.min(100,d.p+.12);d.down=Math.max(8,Math.min(38,d.down+(Math.random()-.5)*3));d.up=Math.max(.6,d.up+(Math.random()-.5)*.3)}
+    else if(i>0&&i<5)d.p=Math.min(100,d.p+1.2);
+    else continue;
+    if(d.p>=100){
+      const g=game(d.id);
+      if(d.stage==='Detect'){d.stage='Seeding';d.p=100;d.ratio=.1;d.up=.8;g.st='Seeding';toast(g.n+' is ready to play');}
+      else{d.stage=STAGES[i+1];d.p=0;d.down=0;g.st=stateName[d.stage]}
+      rerender=true;
+    }
+  }
+  if(!D.some(d=>d.stage==='Download')){const q=D.find(d=>d.stage==='Queued');if(q){q.stage='Download';q.down=16;q.up=.5;q.peers=31;q.seeds=18;game(q.id).st='Downloading';rerender=true}}
+  const net=D.reduce((x,d)=>x+d.down,0),up=D.reduce((x,d)=>x+d.up,0);
+  S.graph.push([net,up]);S.graph.shift();
+  dlPill();
+  if(S.view==='downloads'){
+    drawGraph();
+    if(rerender)render(false);else{
+      const a=D.find(d=>d.stage==='Download')||D.find(d=>['Verify','Extract','Install','Detect'].includes(d.stage));
+      if(a&&$('[data-live=pct]')){const g=game(a.id);$('[data-live=pct]').textContent=Math.floor(a.p)+'%';$('[data-live=done]').textContent=(g.z*a.p/100).toFixed(1);$('[data-live=speed]').textContent=a.down.toFixed(1);$('[data-live=eta]').textContent=fmtEta(a);$('[data-live=bar]').style.width=a.p+'%'}
+    }
+  }
+  if(S.run){const s=Math.floor((Date.now()-S.run.t)/1000),e=$('#elapsed');if(e)e.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+},1000);
+setInterval(()=>{if(S.view==='home'&&!$('#hero:hover')&&!document.hidden)setHero((S.hero+1)%4)},8000);
+addEventListener('resize',()=>{drawGraph();drawPieces()});
+render();dlPill();
+</script>
+</body>
+</html>
