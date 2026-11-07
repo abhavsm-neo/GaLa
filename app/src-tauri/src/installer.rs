@@ -35,6 +35,8 @@ const SCAN_DEPTH: usize = 2;
 const MAX_ROUNDS: usize = 4;
 const ARCHIVES: &[&str] = &["iso", "zip", "7z", "rar"];
 const SKIP_FOLDERS: &[&str] = &["redist", "_commonredist", "directx", "vcredist", "dotnet", "support", "crack", "fix"];
+pub const NEEDS_PASSWORD: &str = "This archive needs a password";
+const WRONG_PASSWORD: &str = "That password didn't work";
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SetupKind {
@@ -63,6 +65,7 @@ struct Job {
     game_id: i64,
     dest: PathBuf,
     interactive: bool,
+    password: Option<String>,
 }
 
 #[derive(Default)]
@@ -185,9 +188,15 @@ pub fn folder_name(name: &str) -> String {
     if tidy.is_empty() { "Game".into() } else { tidy.into() }
 }
 
-fn unpacked_size(archive: &Path) -> Result<u64, String> {
+/// `-p-` stands in when there's no password, so 7-Zip never waits for one to be typed.
+fn password_arg(password: Option<&str>) -> String {
+    format!("-p{}", password.unwrap_or("-"))
+}
+
+fn unpacked_size(archive: &Path, password: Option<&str>) -> Result<u64, String> {
     let output = Command::new(SEVEN_ZIP)
-        .args(["l", "-p-"])
+        .arg("l")
+        .arg(password_arg(password))
         .arg(archive)
         .creation_flags(CREATE_NO_WINDOW)
         .stdin(Stdio::null())
@@ -201,8 +210,8 @@ fn unpacked_size(archive: &Path) -> Result<u64, String> {
     })).unwrap_or(0))
 }
 
-fn extract(archive: &Path, dest: &Path, report: impl Fn(u8)) -> Result<(), String> {
-    let needed = unpacked_size(archive)?;
+fn extract(archive: &Path, dest: &Path, password: Option<&str>, report: impl Fn(u8)) -> Result<(), String> {
+    let needed = unpacked_size(archive, password)?;
     let free = free_space(dest);
     if needed > free {
         return Err(format!("Needs {} GB free, but this drive has {} GB", needed >> 30, free >> 30));
@@ -210,7 +219,8 @@ fn extract(archive: &Path, dest: &Path, report: impl Fn(u8)) -> Result<(), Strin
     fs::create_dir_all(dest).map_err(|e| e.to_string())?;
 
     let mut child = Command::new(SEVEN_ZIP)
-        .args(["x", "-y", "-aoa", "-p-", "-bso0", "-bsp1"])
+        .args(["x", "-y", "-aoa", "-bso0", "-bsp1"])
+        .arg(password_arg(password))
         .arg(format!("-o{}", dest.display()))
         .arg(archive)
         .creation_flags(CREATE_NO_WINDOW)
@@ -247,7 +257,7 @@ fn extract(archive: &Path, dest: &Path, report: impl Fn(u8)) -> Result<(), Strin
         return Ok(());
     }
     Err(if errors.to_lowercase().contains("password") {
-        "This archive is password protected".into()
+        if password.is_some() { WRONG_PASSWORD } else { NEEDS_PASSWORD }.into()
     } else {
         errors
             .lines()
@@ -338,9 +348,9 @@ impl Installer {
         });
     }
 
-    pub fn enqueue(&self, app: &AppHandle, game_id: i64, dest: PathBuf, interactive: bool) -> Result<(), String> {
+    pub fn enqueue(&self, app: &AppHandle, game_id: i64, dest: PathBuf, interactive: bool, password: Option<String>) -> Result<(), String> {
         app.state::<Db>().set_install(game_id, "queued", "").map_err(|e| e.to_string())?;
-        self.queue.lock().unwrap().push_back(Job { game_id, dest, interactive });
+        self.queue.lock().unwrap().push_back(Job { game_id, dest, interactive, password });
         self.wake.notify_one();
         library::changed(app);
         Ok(())
@@ -379,7 +389,7 @@ fn process(app: &AppHandle, job: &Job) -> Result<Option<String>, String> {
             Source::Archive(archive) => {
                 enter_stage(app, job.game_id, "extracting")?;
                 let game_id = job.game_id;
-                extract(&archive, &job.dest, |percent| report(app, game_id, "extracting", Some(percent)))?;
+                extract(&archive, &job.dest, job.password.as_deref(), |percent| report(app, game_id, "extracting", Some(percent)))?;
                 done.insert(archive);
                 current = job.dest.clone();
             }
@@ -424,6 +434,12 @@ mod tests {
         assert!(is_archive(Path::new("game.rar")));
         assert!(is_archive(Path::new("game.7z.001")));
         assert!(!is_archive(Path::new("game.bin")));
+    }
+
+    #[test]
+    fn asks_7zip_never_to_prompt() {
+        assert_eq!(password_arg(None), "-p-");
+        assert_eq!(password_arg(Some("cs.rin.ru")), "-pcs.rin.ru");
     }
 
     #[test]

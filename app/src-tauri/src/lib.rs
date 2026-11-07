@@ -121,11 +121,12 @@ fn install_game(
     id: i64,
     folder: String,
     interactive: bool,
+    password: Option<String>,
 ) -> Result<(), String> {
     let game = db.game(id).map_err(text)?.ok_or("That game is no longer in your library")?;
     store.update(|s| s.install_dir = folder.clone())?;
     let dest = Path::new(&folder).join(installer::folder_name(&game.name));
-    installer.enqueue(&app, id, dest, interactive)
+    installer.enqueue(&app, id, dest, interactive, password.filter(|p| !p.is_empty()))
 }
 
 #[tauri::command]
@@ -153,10 +154,17 @@ fn set_game_exe(app: AppHandle, db: State<Db>, id: i64, exe: String) -> Result<(
 }
 
 #[tauri::command]
-fn remove_game(app: AppHandle, db: State<Db>, id: i64) -> Result<(), String> {
-    db.hide(id).map_err(text)?;
-    library::changed(&app);
-    Ok(())
+async fn remove_game(app: AppHandle, id: i64, delete_files: bool) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if delete_files {
+            mover::recycle_game(&app, id)?;
+        }
+        app.state::<Db>().hide(id).map_err(text)?;
+        library::changed(&app);
+        Ok(())
+    })
+    .await
+    .map_err(text)?
 }
 
 #[tauri::command]

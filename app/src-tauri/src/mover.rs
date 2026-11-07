@@ -13,6 +13,8 @@ use serde::Serialize;
 use serde_json::json;
 use std::{
     fs,
+    iter::once,
+    os::windows::ffi::OsStrExt,
     io::{Read, Write},
     path::{Component, Path, PathBuf},
     sync::{
@@ -23,6 +25,9 @@ use std::{
     time::{Duration, Instant},
 };
 use tauri::{AppHandle, Emitter, Manager};
+use windows_sys::Win32::UI::Shell::{
+    SHFileOperationW, FOF_ALLOWUNDO, FOF_NOCONFIRMATION, FOF_SILENT, FOF_WANTNUKEWARNING, FO_DELETE, SHFILEOPSTRUCTW,
+};
 
 const CHUNK: usize = 4 << 20;
 const REPORT_EVERY: Duration = Duration::from_millis(250);
@@ -150,7 +155,11 @@ fn check(app: &AppHandle, game: &Game, dest: &Path) -> Result<(), String> {
     if dest.exists() {
         return Err(format!("{} already exists", dest.display()));
     }
+    own_folder(app, game)
+}
 
+fn own_folder(app: &AppHandle, game: &Game) -> Result<(), String> {
+    let folder = Path::new(&game.install_dir);
     let settings = app.state::<Store>().get();
     let shared = [PathBuf::from(settings.download_dir), PathBuf::from(settings.install_dir)];
     let others: Vec<PathBuf> = app.state::<Db>().games().map_err(|e| e.to_string())?
@@ -321,4 +330,43 @@ mod tests {
         assert!(root.join("one/save.dat").is_file());
         fs::remove_dir_all(&root).unwrap();
     }
+}
+
+fn recycle(folder: &Path) -> Result<(), String> {
+    // The list of paths ends with an extra null.
+    let from: Vec<u16> = folder.as_os_str().encode_wide().chain(once(0)).chain(once(0)).collect();
+    let mut operation = SHFILEOPSTRUCTW {
+        wFunc: FO_DELETE,
+        pFrom: from.as_ptr(),
+        fFlags: (FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_WANTNUKEWARNING) as _,
+        ..unsafe { std::mem::zeroed() }
+    };
+    let code = unsafe { SHFileOperationW(&mut operation) };
+    if code != 0 {
+        return Err(format!("Windows couldn't delete {} (error {code})", folder.display()));
+    }
+    if operation.fAnyOperationsAborted != 0 {
+        return Err("Deleting was cancelled, so the game's files are still there".into());
+    }
+    Ok(())
+}
+
+/// Sends a game's folder to the Recycle Bin, with the same guards as a move.
+pub fn recycle_game(app: &AppHandle, game_id: i64) -> Result<(), String> {
+    let game = app.state::<Db>().game(game_id).map_err(|e| e.to_string())?.ok_or("That game is no longer in your library")?;
+    if !game.launcher.is_empty() {
+        return Err(format!("Uninstall {} from {} to delete its files", game.name, game.launcher));
+    }
+    if !game.install_state.is_empty() {
+        return Err("This game isn't installed yet, so there are no game files to delete".into());
+    }
+    if app.state::<Player>().running().is_some_and(|running| running.game_id == game.id) {
+        return Err("Close the game before deleting it".into());
+    }
+    if app.state::<Mover>().current().is_some_and(|moving| moving.game_id == game.id) {
+        return Err("Wait for the move to finish".into());
+    }
+    own_folder(app, &game)?;
+    release_torrent(app, &game);
+    recycle(Path::new(&game.install_dir))
 }

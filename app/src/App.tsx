@@ -4,8 +4,9 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, type Settings, type Torrent } from './api';
 import { AddDialog } from './components/AddDialog';
-import { confirmStop, type GameActions } from './components/GameCards';
+import { confirmStop, playable, type GameActions } from './components/GameCards';
 import { RemoveDialog } from './components/RemoveDialog';
+import { RemoveGameDialog } from './components/RemoveGameDialog';
 import { isFinished, percent, rate, stateLabel } from './format';
 import { Downloads } from './pages/Downloads';
 import { GamePage } from './pages/GamePage';
@@ -63,6 +64,8 @@ export function App() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [adding, setAdding] = useState<{ file: string; magnet?: string } | null>(null);
   const [removing, setRemoving] = useState<Torrent | null>(null);
+  const [menu, setMenu] = useState<{ id: number; x: number; y: number } | null>(null);
+  const [removingGame, setRemovingGame] = useState<number | null>(null);
   const [message, setMessage] = useState('');
   const toastTimer = useRef(0);
 
@@ -102,7 +105,15 @@ export function App() {
     play: id => {
       api.play(id).catch(e => toast(String(e)));
     },
+    menu: (id, e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setMenu({ id, x: Math.min(e.clientX, window.innerWidth - 200), y: Math.min(e.clientY, window.innerHeight - 130) });
+    },
+    remove: id => setRemovingGame(id),
   };
+  const menuGame = games.find(g => g.id === menu?.id);
+  const gameToRemove = games.find(g => g.id === removingGame);
   const page = route.page;
   const runningGame = games.find(g => g.id === running?.game_id);
 
@@ -131,8 +142,22 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    window.addEventListener('click', close);
+    window.addEventListener('blur', close);
+    window.addEventListener('scroll', close, true);
+    return () => {
+      window.removeEventListener('click', close);
+      window.removeEventListener('blur', close);
+      window.removeEventListener('scroll', close, true);
+    };
+  }, [menu]);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key.toLowerCase() === 'q') api.quit();
+      if (e.key === 'Escape') setMenu(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -176,7 +201,6 @@ export function App() {
             moving={moving}
             installFolder={settings?.install_dir ?? 'E:\\GaLa\\Games'}
             actions={actions}
-            onRemoved={() => setPage('Library')}
             onInstall={folder => settings && setSettings({ ...settings, install_dir: folder })}
           />
         )}
@@ -223,6 +247,28 @@ export function App() {
         />
       )}
       {removing && <RemoveDialog torrent={removing} onClose={() => setRemoving(null)} />}
+      {menu && menuGame && (
+        <div className="ctxmenu" role="menu" style={{ left: menu.x, top: menu.y }} onContextMenu={e => e.preventDefault()}>
+          {playable(menuGame) && <button role="menuitem" onClick={() => actions.play(menuGame.id)}>Play</button>}
+          <button role="menuitem" onClick={() => actions.open(menuGame.id)}>Game page</button>
+          <button role="menuitem" onClick={() => api.updateGame(menuGame.id, { favorite: !menuGame.favorite })}>
+            {menuGame.favorite ? 'Remove from favourites' : 'Add to favourites'}
+          </button>
+          <button role="menuitem" className="bad" onClick={() => setRemovingGame(menuGame.id)}>Remove from library</button>
+        </div>
+      )}
+      {gameToRemove && (
+        <RemoveGameDialog
+          key={gameToRemove.id}
+          game={gameToRemove}
+          onClose={() => setRemovingGame(null)}
+          onRemoved={() => {
+            setRemovingGame(null);
+            if (route.game === gameToRemove.id) setPage('Library');
+            toast(`Removed ${gameToRemove.name}`);
+          }}
+        />
+      )}
       <div id="toast" role="status" className={message ? 'open' : ''}>{message}</div>
     </div>
   );

@@ -76,7 +76,7 @@ export function Library({ games, actions }: { games: Game[]; actions: GameAction
         {genres.map(name => sideItem(`genre:${name}`, name, inGenre(name)))}
         <div className="side-h">All games</div>
         {[...games].sort(SORTS.name).map(g => (
-          <button key={g.id} className="minigame" onClick={() => actions.open(g.id)}>
+          <button key={g.id} className="minigame" onClick={() => actions.open(g.id)} onContextMenu={e => actions.menu(g.id, e)}>
             <GameArt game={g} wide /><span>{g.name}</span>
           </button>
         ))}
@@ -117,7 +117,7 @@ export function Library({ games, actions }: { games: Game[]; actions: GameAction
             <thead><tr><th /><th>Name</th><th>Genre</th><th>Year</th><th>Status</th><th>Played</th><th>Last played</th></tr></thead>
             <tbody>
               {list.map(g => (
-                <tr key={g.id} onClick={() => actions.open(g.id)}>
+                <tr key={g.id} onClick={() => actions.open(g.id)} onContextMenu={e => actions.menu(g.id, e)}>
                   <td><GameArt game={g} wide /></td>
                   <td><b>{g.name}</b></td>
                   <td>{g.genres[0] ?? '-'}</td>

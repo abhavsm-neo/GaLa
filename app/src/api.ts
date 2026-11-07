@@ -114,7 +114,8 @@ export const api = {
   openFolder: (path: string) => invoke<void>('open_folder', { path }),
   games: () => invoke<Game[]>('list_games'),
   addGame: (file: string) => invoke<number>('add_game', { file }),
-  install: (id: number, folder: string, interactive: boolean) => invoke<void>('install_game', { id, folder, interactive }),
+  install: (id: number, folder: string, interactive: boolean, password = '') =>
+    invoke<void>('install_game', { id, folder, interactive, password: password || null }),
   installStatus: () => invoke<InstallProgress | null>('install_status'),
   freeSpace: (path: string) => invoke<number>('free_space', { path }),
   updateGame: (id: number, patch: GamePatch) => invoke<void>('update_game', {
@@ -135,7 +136,7 @@ export const api = {
   searchMetadata: (query: string) => invoke<Match[]>('search_metadata', { query }),
   chooseMetadata: (id: number, igdbId: number) => invoke<void>('choose_metadata', { id, igdbId }),
   setGameExe: (id: number, exe: string) => invoke<void>('set_game_exe', { id, exe }),
-  removeGame: (id: number) => invoke<void>('remove_game', { id }),
+  removeGame: (id: number, deleteFiles: boolean) => invoke<void>('remove_game', { id, deleteFiles }),
   findExes: (id: number) => invoke<string[]>('find_exes', { id }),
   folderSize: (path: string) => invoke<number>('folder_size', { path }),
   play: (id: number) => invoke<void>('play_game', { id }),

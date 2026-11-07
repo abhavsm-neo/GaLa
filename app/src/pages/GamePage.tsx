@@ -227,7 +227,8 @@ function InstallBar({ game, installing, onInstall }: { game: Game; installing: I
     );
   }
   if (game.install_state === 'failed') {
-    return <button className="btn play warn big" onClick={onInstall}>Try again</button>;
+    const locked = game.install_error.toLowerCase().includes('password');
+    return <button className="btn play warn big" onClick={onInstall}>{locked ? 'Enter password' : 'Try again'}</button>;
   }
   return <button className="btn play big" onClick={onInstall}>Install</button>;
 }
@@ -243,7 +244,7 @@ function MoveBar({ moving }: { moving: MoveProgress }) {
   );
 }
 
-export function GamePage({ game, categories, running, installing, moving, installFolder, actions, onRemoved, onInstall }: {
+export function GamePage({ game, categories, running, installing, moving, installFolder, actions, onInstall }: {
   game: Game | undefined;
   categories: string[];
   running: Running | null;
@@ -251,7 +252,6 @@ export function GamePage({ game, categories, running, installing, moving, instal
   moving: MoveProgress | null;
   installFolder: string;
   actions: GameActions;
-  onRemoved: () => void;
   onInstall: (folder: string) => void;
 }) {
   const [tab, setTab] = useState('Overview');
@@ -269,13 +269,6 @@ export function GamePage({ game, categories, running, installing, moving, instal
 
   const movingHere = moving?.game_id === game.id ? moving : null;
   const isRunning = running?.game_id === game.id;
-
-  const remove = async () => {
-    const yes = await ask(`Remove ${game.name} from your library? Its files stay on disk.`, { title: 'Remove game', kind: 'warning' });
-    if (!yes) return;
-    await api.removeGame(game.id);
-    onRemoved();
-  };
 
   return (
     <div style={{ '--c': tint(game.id) } as React.CSSProperties}>
@@ -313,10 +306,10 @@ export function GamePage({ game, categories, running, installing, moving, instal
           game={game}
           folder={installFolder}
           onClose={() => setDialog(false)}
-          onStart={(folder, interactive) => {
+          onStart={(folder, interactive, password) => {
             setDialog(false);
             onInstall(folder);
-            api.install(game.id, folder, interactive);
+            api.install(game.id, folder, interactive, password);
           }}
         />
       )}
@@ -423,7 +416,7 @@ export function GamePage({ game, categories, running, installing, moving, instal
                 onBlur={e => e.target.value.trim() && api.updateGame(game.id, { name: e.target.value.trim() })}
               />
               <div style={{ marginTop: 10 }}>
-                <button className="btn sm danger" onClick={remove}>Remove from library</button>
+                <button className="btn sm danger" onClick={() => actions.remove(game.id)}>Remove from library</button>
               </div>
             </div>
           </aside>

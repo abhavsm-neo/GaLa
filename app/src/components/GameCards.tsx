@@ -7,6 +7,8 @@ import { lastPlayed, playtime, tint } from '../format';
 export type GameActions = {
   open: (id: number) => void;
   play: (id: number) => void;
+  menu: (id: number, e: React.MouseEvent) => void;
+  remove: (id: number) => void;
 };
 
 export async function confirmStop(name: string) {
@@ -47,6 +49,7 @@ export function Capsule({ game, actions }: { game: Game; actions: GameActions })
       tabIndex={0}
       style={{ '--c': tint(game.id) } as React.CSSProperties}
       onClick={() => actions.open(game.id)}
+      onContextMenu={e => actions.menu(game.id, e)}
       onKeyDown={e => e.key === 'Enter' && actions.open(game.id)}
     >
       {label && <span className={`badge ${label[1]}`}>{label[0]}</span>}
@@ -77,6 +80,7 @@ export function Banner({ game, actions }: { game: Game; actions: GameActions }) 
       tabIndex={0}
       style={{ '--c': tint(game.id) } as React.CSSProperties}
       onClick={() => actions.open(game.id)}
+      onContextMenu={e => actions.menu(game.id, e)}
       onKeyDown={e => e.key === 'Enter' && actions.open(game.id)}
     >
       <GameArt game={game} wide />
