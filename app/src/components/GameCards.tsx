@@ -1,5 +1,6 @@
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { ask } from '@tauri-apps/plugin-dialog';
+import { useEffect, useState } from 'react';
 import type { Game, Running } from '../api';
 import { api } from '../api';
 import { lastPlayed, playtime, tint } from '../format';
@@ -41,7 +42,9 @@ export function GameArt({ game, wide }: { game: Game; wide?: boolean }) {
   );
 }
 
-export function Capsule({ game, actions }: { game: Game; actions: GameActions }) {
+const PREVIEW_MS = 1300;
+
+export function Capsule({ game, actions, rated }: { game: Game; actions: GameActions; rated?: boolean }) {
   const label = installLabel(game);
   return (
     <article
@@ -56,6 +59,7 @@ export function Capsule({ game, actions }: { game: Game; actions: GameActions })
       {game.favorite && <span className="fav" aria-label="Favourite">♥</span>}
       <div style={{ position: 'relative' }}>
         <GameArt game={game} />
+        {rated && game.igdb_rating != null && <span className="score">{Math.round(game.igdb_rating)}</span>}
         <div className="hov" style={{ borderRadius: 9 }}>
           <small>{playtime(game.total_seconds)}</small>
           {playable(game) ? (
@@ -73,7 +77,22 @@ export function Capsule({ game, actions }: { game: Game; actions: GameActions })
   );
 }
 
+/** Cycles through the game's screenshots while the pointer rests on it. */
+function usePreview(shots: string[]) {
+  const [hovered, setHovered] = useState(false);
+  const [shot, setShot] = useState(-1);
+
+  useEffect(() => {
+    if (!hovered || !shots.length) return setShot(-1);
+    const timer = setInterval(() => setShot(i => (i + 1) % shots.length), PREVIEW_MS);
+    return () => clearInterval(timer);
+  }, [hovered, shots.length]);
+
+  return { shot: shot >= 0 ? shots[shot] : null, onMouseEnter: () => setHovered(true), onMouseLeave: () => setHovered(false) };
+}
+
 export function Banner({ game, actions }: { game: Game; actions: GameActions }) {
+  const { shot, onMouseEnter, onMouseLeave } = usePreview(game.screenshots);
   return (
     <article
       className="cont"
@@ -82,8 +101,13 @@ export function Banner({ game, actions }: { game: Game; actions: GameActions }) 
       onClick={() => actions.open(game.id)}
       onContextMenu={e => actions.menu(game.id, e)}
       onKeyDown={e => e.key === 'Enter' && actions.open(game.id)}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
-      <GameArt game={game} wide />
+      <div className="preview">
+        <GameArt game={game} wide />
+        {shot && <img key={shot} className="shot" src={convertFileSrc(shot)} alt="" />}
+      </div>
       {playable(game) && (
         <button className="quick" aria-label={`Play ${game.name}`} onClick={e => { e.stopPropagation(); actions.play(game.id); }}>▶</button>
       )}

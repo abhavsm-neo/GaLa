@@ -188,7 +188,17 @@ export function App() {
       </header>
 
       <main id="view" className={page === 'Library' ? 'flat' : ''}>
-        {page === 'Home' && <Home games={games} running={running} actions={actions} goLibrary={() => setPage('Library')} />}
+        {page === 'Home' && (
+          <Home
+            games={games}
+            running={running}
+            torrents={torrents}
+            downloadDir={settings?.download_dir ?? 'E:\\GaLa\\Downloads'}
+            actions={actions}
+            goLibrary={() => setPage('Library')}
+            goDownloads={() => setPage('Downloads')}
+          />
+        )}
         {page === 'Library' && <Library games={games} actions={actions} />}
         {page === 'Stats' && <Stats games={games} actions={actions} />}
         {page === 'Game' && (

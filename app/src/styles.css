@@ -192,3 +192,32 @@ kbd{font:600 11px var(--ui);background:var(--s2);padding:1px 6px;border-radius:5
 .ctxmenu{position:fixed;z-index:40;min-width:190px;padding:5px;background:#141821;border:1px solid var(--line2);border-radius:9px;box-shadow:0 12px 32px rgba(0,0,0,.5);display:flex;flex-direction:column}
 .ctxmenu button{text-align:left;padding:7px 10px;border-radius:6px;font-size:13px}.ctxmenu button:hover{background:rgba(255,255,255,.07)}
 .ctxmenu .bad{color:var(--bad)}
+/* Home */
+.home{position:relative;isolation:isolate}
+.homebg{position:absolute;inset:0 0 auto;height:1150px;z-index:-1;overflow:hidden;pointer-events:none;animation:bgin 1.2s ease;-webkit-mask-image:linear-gradient(180deg,#000 35%,transparent);mask-image:linear-gradient(180deg,#000 35%,transparent)}
+.homebg img{width:100%;height:100%;object-fit:cover;filter:blur(70px) saturate(1.6) brightness(.55);transform:scale(1.25);opacity:.75}
+@keyframes bgin{from{opacity:0}}
+.homehero{height:clamp(380px,56vh,560px)}
+.homehero::after{background:linear-gradient(0deg,rgba(9,11,15,.92) 0%,rgba(9,11,15,.35) 45%,transparent 70%),linear-gradient(90deg,rgba(9,11,15,.82),rgba(9,11,15,.25) 50%,transparent 75%)}
+.homehero .drift{position:absolute;inset:0;animation:bgin .9s ease}
+.homehero .drift .art{animation:drift 22s ease-in-out infinite alternate}
+@keyframes drift{from{transform:scale(1.04) translate(0,0)}to{transform:scale(1.13) translate(-2%,-1.5%)}}
+.homehero .herotext{animation:fade .6s ease both;bottom:44px}
+.herologo{display:block;max-width:min(440px,100%);max-height:150px;margin-bottom:14px;filter:drop-shadow(0 6px 24px #000c)}
+.facts{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}.facts span{padding:3px 9px;border-radius:5px;background:rgba(255,255,255,.12);backdrop-filter:blur(8px);font-size:12px;font-weight:700;color:var(--t1)}
+.summary{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:#D5D9E1;font-size:14.5px;line-height:1.5;margin:0 0 14px!important;max-width:540px!important}
+.dots{position:absolute;z-index:3;right:40px;bottom:30px;display:flex;gap:8px}
+.dots button{width:26px;height:4px;border-radius:4px;background:rgba(255,255,255,.3);transition:.25s}.dots button:hover{background:rgba(255,255,255,.6)}.dots button.on{width:44px;background:var(--t1)}
+.hello{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-top:6px}.hello h2{font-size:30px}.hello span{color:var(--t2);font-size:13.5px}.hello .btn{margin-left:auto;align-self:center}.hello .btn+.btn{margin-left:0}
+.glance{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:16px;animation:fade .5s ease .1s both}
+.gcard{display:flex;flex-direction:column;gap:6px;min-width:0;text-align:left;padding:14px 16px;border-radius:11px;background:rgba(15,18,24,.62);border:1px solid var(--line);backdrop-filter:blur(14px)}
+button.gcard{cursor:pointer;transition:.15s}button.gcard:hover{border-color:var(--line2);background:rgba(25,29,38,.7)}
+.gcard small{color:var(--t3);font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase}
+.gcard b{font:700 22px var(--disp);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gcard .sub{color:var(--t2);font-size:12.5px}.gcard.low{border-color:rgba(255,181,71,.5)}.gcard.low b{color:var(--warn)}
+.weekbars{display:flex;gap:6px;height:46px;align-items:flex-end}.weekbars span{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px}
+.weekbars i{width:100%;border-radius:3px 3px 1px 1px;background:var(--go);min-height:3px}.weekbars i.none{background:var(--s2)}.weekbars em{font-style:normal;font-size:10px;color:var(--t3)}
+.rise{animation:fade .5s ease both;animation-delay:calc(.12s + var(--i,0) * .07s)}
+.score{position:absolute;right:7px;bottom:7px;z-index:1;min-width:28px;padding:2px 6px;border-radius:5px;background:rgba(5,6,9,.82);backdrop-filter:blur(5px);color:var(--go);font-size:11px;font-weight:800;text-align:center}
+.cont .preview{position:relative}.cont .preview .shot{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:bgin .35s ease}
+@media (max-width:1100px){.glance{grid-template-columns:1fr 1fr}.glance .gcard:last-child{grid-column:span 2}}
