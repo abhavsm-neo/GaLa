@@ -5,7 +5,10 @@
     },
     "fileAssociations": [
       { "ext": ["torrent"], "name": "GaLa.Torrent", "description": "Torrent file", "role": "Viewer" }
-    ]
+    ],
+    "windows": {
+      "nsis": { "installerHooks": "installer-hooks.nsh" }
+    }
   },
   "plugins": {
     "deep-link": {
