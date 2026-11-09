@@ -4,7 +4,7 @@ const GB = 1024 ** 3;
 const MB = 1024 ** 2;
 
 export const bytes = (value: number) =>
-  value >= GB ? `${(value / GB).toFixed(2)} GB` : `${(value / MB).toFixed(1)} MB`;
+  value >= GB ? `${(value / GB).toFixed(2)} GB` : value >= MB || !value ? `${(value / MB).toFixed(1)} MB` : `${Math.max(1, Math.round(value / 1024))} KB`;
 
 export const rate = (value: number) => `${(value / MB).toFixed(1)} MB/s`;
 
@@ -19,6 +19,7 @@ export function eta(t: Torrent) {
 export const isFinished = (t: Torrent) => t.state === 'seeding' || t.state === 'finished';
 
 export function stateLabel(t: Torrent) {
+  if (t.holding) return 'Choose files';
   if (t.error) return 'Error';
   if (t.paused) return 'Paused';
   if (t.queued) return 'Queued';

@@ -7,6 +7,8 @@ export type Torrent = {
   paused: boolean;
   queued: boolean;
   queue_position: number;
+  /** Added but waiting for its files to be chosen. */
+  holding: boolean;
   error: string;
   save_path: string;
   added_time: number;
@@ -21,10 +23,12 @@ export type Torrent = {
   seeds: number;
 };
 
+export type TorrentFile = { path: string; size: number; done: number; wanted: boolean; pad: boolean };
+
 export type Detail = {
   id: string;
   peers: { ip: string; client: string; down_rate: number; up_rate: number; progress: number }[];
-  files: { path: string; size: number; done: number }[];
+  files: TorrentFile[];
   trackers: { url: string; verified: boolean }[];
   pieces: number[];
 };
@@ -100,8 +104,9 @@ export type DayPlaytime = { day: string; seconds: number };
 
 export const api = {
   snapshot: () => invoke<boolean>('engine_snapshot'),
-  addMagnet: (magnet: string, savePath: string) => invoke<void>('add_magnet', { magnet, savePath }),
-  addTorrentFile: (path: string, savePath: string) => invoke<void>('add_torrent_file', { path, savePath }),
+  addMagnet: (magnet: string, savePath: string, request: string) => invoke<void>('add_magnet', { magnet, savePath, request }),
+  addTorrentFile: (path: string, savePath: string, request: string) => invoke<void>('add_torrent_file', { path, savePath, request }),
+  setFiles: (id: string, wanted: boolean[]) => invoke<void>('set_files', { id, wanted }),
   pause: (id: string) => invoke<void>('pause', { id }),
   resume: (id: string) => invoke<void>('resume', { id }),
   startNext: (id: string) => invoke<void>('start_next', { id }),

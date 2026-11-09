@@ -221,3 +221,16 @@ button.gcard{cursor:pointer;transition:.15s}button.gcard:hover{border-color:var(
 .score{position:absolute;right:7px;bottom:7px;z-index:1;min-width:28px;padding:2px 6px;border-radius:5px;background:rgba(5,6,9,.82);backdrop-filter:blur(5px);color:var(--go);font-size:11px;font-weight:800;text-align:center}
 .cont .preview{position:relative}.cont .preview .shot{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:bgin .35s ease}
 @media (max-width:1100px){.glance{grid-template-columns:1fr 1fr}.glance .gcard:last-child{grid-column:span 2}}
+/* File picker */
+.add.wide{width:min(760px,calc(100vw - 32px))}
+.fbar{display:flex;align-items:center;gap:8px;margin-bottom:8px;color:var(--t2);font-size:13px}.fbar span{flex:1}.fbar b{color:var(--t1)}
+.ftree{max-height:min(46vh,420px);overflow:auto;border:1px solid var(--line);border-radius:8px;background:rgba(0,0,0,.25);padding:4px 0}
+.detail .ftree{max-height:340px;margin-top:8px}
+.frow{display:flex;align-items:center;gap:8px;padding:5px 10px 5px calc(10px + var(--d,0) * 18px);font-size:13px;cursor:pointer}.frow:hover{background:var(--s1)}
+.frow.folder{font-weight:700}.frow.off .fname{color:var(--t3);text-decoration:line-through;text-decoration-color:rgba(255,255,255,.18)}
+.frow input{accent-color:var(--go);width:15px;height:15px;flex:none;cursor:pointer}
+.caret{width:14px;flex:none;color:var(--t3);font-size:11px;text-align:center}
+.fname{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fsize{color:var(--t2);font-size:12px;flex:none;min-width:72px;text-align:right}.fdone{color:var(--t3);font-size:12px;flex:none;min-width:56px;text-align:right}
+.fapply{display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 12px;border-radius:8px;background:var(--s2)}.fapply span{flex:1;font-size:13px}
+.warnnote{color:var(--warn)}

@@ -59,17 +59,23 @@ fn engine_snapshot(engine: State<Engine>) -> bool {
 }
 
 #[tauri::command]
-fn add_magnet(engine: State<Engine>, magnet: String, save_path: String) -> Result<(), String> {
+/// New torrents wait for their files to be chosen. The engine answers with the request.
+fn add_magnet(engine: State<Engine>, magnet: String, save_path: String, request: String) -> Result<(), String> {
     if !magnet.to_ascii_lowercase().starts_with("magnet:?") {
         return Err("That isn't a magnet link".into());
     }
-    engine.send(json!({ "cmd": "add", "magnet": magnet, "save_path": save_path }));
+    engine.send(json!({ "cmd": "add", "magnet": magnet, "save_path": save_path, "hold": true, "request": request }));
     Ok(())
 }
 
 #[tauri::command]
-fn add_torrent_file(engine: State<Engine>, path: String, save_path: String) {
-    engine.send(json!({ "cmd": "add", "torrent_file": path, "save_path": save_path }));
+fn add_torrent_file(engine: State<Engine>, path: String, save_path: String, request: String) {
+    engine.send(json!({ "cmd": "add", "torrent_file": path, "save_path": save_path, "hold": true, "request": request }));
+}
+
+#[tauri::command]
+fn set_files(engine: State<Engine>, id: String, wanted: Vec<bool>) {
+    engine.send(json!({ "cmd": "set_files", "id": id, "wanted": wanted }));
 }
 
 #[tauri::command]
@@ -391,6 +397,7 @@ pub fn run() {
             add_torrent_file,
             pause,
             resume,
+            set_files,
             start_next,
             remove,
             detail,

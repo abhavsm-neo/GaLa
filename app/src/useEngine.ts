@@ -6,7 +6,7 @@ export type Sample = { down: number; up: number };
 
 const HISTORY = 150;
 
-type EngineEvent = Partial<Torrent> & Partial<Detail> & { event: string; id?: string; message?: string };
+type EngineEvent = Partial<Torrent> & Partial<Detail> & { event: string; id?: string; message?: string; request?: string };
 
 export function useEngine(toast: (message: string) => void) {
   const [connected, setConnected] = useState(false);
@@ -27,7 +27,8 @@ export function useEngine(toast: (message: string) => void) {
         if (m.event === 'progress') setTorrents(all => ({ ...all, [id]: m as unknown as Torrent }));
         if (m.event === 'detail') setDetail(m as unknown as Detail);
         if (m.event === 'finished') toastRef.current(`${latest.current[id]?.name ?? 'Download'} finished`);
-        if (m.event === 'error' && m.message) toastRef.current(m.message);
+        // An answer to a request goes to whoever asked, such as the Add dialog.
+        if (m.event === 'error' && m.message && !m.request) toastRef.current(m.message);
         if (m.event === 'removed') {
           setTorrents(all => {
             const { [id]: _, ...rest } = all;

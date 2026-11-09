@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { api, type Detail, type Game, type Settings, type Torrent } from '../api';
+import { api, type Detail, type Game, type Settings, type Torrent, type TorrentFile } from '../api';
+import { ChooseFiles, chosenBytes, FileTree } from '../components/FileTree';
 import { NetGraph, PieceMap } from '../components/Charts';
 import { installLabel } from '../components/GameCards';
 import { bytes, eta, isFinished, percent, rate, stateLabel, tint } from '../format';
@@ -37,12 +38,66 @@ function Art({ torrent }: { torrent: Torrent }) {
   );
 }
 
+function ChooseButton({ torrent }: { torrent: Torrent }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button className="btn sm play" onClick={() => setOpen(true)}>Choose files</button>
+      {open && (
+        <div className="overlay open" onClick={e => e.stopPropagation()}>
+          <div className="add wide" role="dialog" aria-label="Choose files">
+            <h2>Choose files</h2>
+            <p className="note" style={{ marginTop: 0 }}>{torrent.name} · Saving to {torrent.save_path}</p>
+            <ChooseFiles id={torrent.id} savePath={torrent.save_path} cancelLabel="Not now" onStarted={() => setOpen(false)} onCancel={() => setOpen(false)} />
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function PauseButton({ torrent }: { torrent: Torrent }) {
+  if (torrent.holding) return <ChooseButton torrent={torrent} />;
   const held = torrent.paused || Boolean(torrent.error);
   return (
     <button className="btn sm" onClick={() => (held ? api.resume(torrent.id) : api.pause(torrent.id))}>
       {held ? 'Resume' : 'Pause'}
     </button>
+  );
+}
+
+/** Changes wait for Apply, so the list refreshing every two seconds can't undo a tick. */
+function FilesTab({ torrent, files }: { torrent: Torrent; files: TorrentFile[] }) {
+  const [draft, setDraft] = useState<boolean[] | null>(null);
+  const [sent, setSent] = useState(false);
+  const engine = files.map(file => file.wanted);
+
+  // Keep showing the applied choice until the engine reports it back.
+  useEffect(() => {
+    if (sent && draft?.every((want, i) => want === files[i]?.wanted)) {
+      setDraft(null);
+      setSent(false);
+    }
+  }, [files, sent, draft]);
+
+  if (torrent.holding) return <p className="note">Pick this download's files with Choose files.</p>;
+  if (!files.length) return <p className="note">The file list hasn't arrived yet.</p>;
+
+  const wanted = draft ?? engine;
+  const changed = !sent && draft !== null && draft.some((want, i) => want !== engine[i]);
+  const kept = wanted.filter((want, i) => want && !files[i].pad).length;
+  const none = !kept;
+  return (
+    <>
+      <FileTree files={files} wanted={wanted} onChange={next => { setDraft(next); setSent(false); }} progress />
+      {changed && (
+        <div className="fapply">
+          <span>{none ? 'Choose at least one file' : `Keep ${kept} ${kept === 1 ? 'file' : 'files'} · ${bytes(chosenBytes(files, wanted))}`}</span>
+          <button className="btn sm" onClick={() => setDraft(null)}>Undo</button>
+          <button className="btn sm play" disabled={none} onClick={() => { api.setFiles(torrent.id, wanted); setSent(true); }}>Apply</button>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -72,11 +127,7 @@ function DetailPanel({ torrent, detail }: { torrent: Torrent; detail: Detail | n
           <span>{Math.round(peer.progress * 100)}% done</span>
         </div>
       ))}
-      {tab === 'Files' && data?.files.map(file => (
-        <div className="kv" key={file.path}>
-          {file.path}<b>{file.size ? Math.floor((file.done / file.size) * 100) : 100}% of {bytes(file.size)}</b>
-        </div>
-      ))}
+      {tab === 'Files' && data && <FilesTab torrent={torrent} files={data.files} />}
       {tab === 'Trackers' && data?.trackers.map(tracker => (
         <div className="kv" key={tracker.url}>{tracker.url}<b>{tracker.verified ? 'Working' : 'Not confirmed'}</b></div>
       ))}

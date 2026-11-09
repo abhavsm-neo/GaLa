@@ -158,8 +158,18 @@ std::string to_id(lt::info_hash_t const& hashes) {
     return out.str();
 }
 
+// A torrent file carries its hashes in the loaded info. A magnet link has only the hashes.
+std::string id_of(lt::add_torrent_params const& params) {
+    return to_id(params.ti ? params.ti->info_hashes() : params.info_hashes);
+}
+
 fs::path resume_path(fs::path const& state_dir, std::string const& id) {
     return state_dir / (id + ".resume");
+}
+
+// Marks a torrent that waits for its files to be chosen, so the wait survives a restart.
+fs::path hold_path(fs::path const& state_dir, std::string const& id) {
+    return state_dir / (id + ".hold");
 }
 
 std::vector<char> read_file(fs::path const& path) {
@@ -246,6 +256,7 @@ public:
             else if (name == "start_next") find(command.at("id").get<std::string>()).queue_position_top();
             else if (name == "pause") pause(command.at("id").get<std::string>());
             else if (name == "resume") resume(command.at("id").get<std::string>());
+            else if (name == "set_files") set_files(command);
             else if (name == "remove") remove(command.at("id").get<std::string>(), command.value("delete_files", false));
             else emit_error("", "Unknown command: " + name);
         } catch (std::exception const& e) {
@@ -313,6 +324,8 @@ private:
                 emit_error("", "Couldn't read " + entry.path().filename().string() + ": " + error.message());
                 continue;
             }
+            std::string const id = entry.path().stem().string();
+            if (fs::exists(hold_path(state_dir_, id))) holding_.insert(id);
             session_.async_add_torrent(std::move(params));
         }
     }
@@ -328,7 +341,55 @@ private:
             params = lt::load_torrent_file(command.at("torrent_file").get<std::string>());
         }
         params.save_path = save_path;
+
+        std::string const id = id_of(params);
+        if (command.contains("request")) requests_[id] = command.at("request").get<std::string>();
+        params.flags |= lt::torrent_flags::duplicate_is_error;
+        if (command.value("hold", false)) {
+            // Runs just long enough to learn the file list and check the disk, then stops
+            // before asking peers for any of the game. A magnet would stop before its file
+            // list arrives, so it runs in upload mode, which never downloads a piece, and
+            // stops once the list is in.
+            params.flags |= params.ti ? lt::torrent_flags::stop_when_ready : lt::torrent_flags::upload_mode;
+            params.flags &= ~(lt::torrent_flags::auto_managed | lt::torrent_flags::paused);
+            new_holds_.insert(id);
+        }
         session_.async_add_torrent(std::move(params));
+    }
+
+    void hold(std::string const& id) {
+        holding_.insert(id);
+        std::ofstream(hold_path(state_dir_, id)).put('\n');
+    }
+
+    void release(std::string const& id) {
+        holding_.erase(id);
+        std::error_code ignored;
+        fs::remove(hold_path(state_dir_, id), ignored);
+    }
+
+    // Unticked files are skipped. A held torrent starts downloading once its files are chosen.
+    void set_files(json const& command) {
+        std::string const id = command.at("id").get<std::string>();
+        auto const& handle = find(id);
+        auto const info = handle.torrent_file();
+        if (!info) throw std::runtime_error("The file list hasn't arrived yet");
+        auto const wanted = command.at("wanted").get<std::vector<bool>>();
+        if (static_cast<int>(wanted.size()) != info->num_files()) throw std::runtime_error("The file list changed. Open it again");
+        // Nothing wanted reads as finished, which would make an empty folder into a game.
+        if (std::none_of(wanted.begin(), wanted.end(), [](bool want) { return want; })) throw std::runtime_error("Choose at least one file");
+
+        std::vector<lt::download_priority_t> priorities;
+        for (bool const want : wanted) priorities.push_back(want ? lt::default_priority : lt::dont_download);
+        handle.prioritize_files(priorities);
+        if (holding_.count(id)) {
+            release(id);
+            handle.unset_flags(lt::torrent_flags::stop_when_ready | lt::torrent_flags::upload_mode);
+            handle.set_flags(lt::torrent_flags::auto_managed);
+            handle.resume();
+        }
+        request_save(handle);
+        emit_status(handle.status(status_fields));
     }
 
     // A client that just connected has missed everything, so send the full picture.
@@ -344,6 +405,7 @@ private:
     void emit_status(lt::torrent_status const& status) {
         json message = to_json(status);
         if (flushing_.count(message["id"].get<std::string>())) message["state"] = "writing";
+        message["holding"] = holding_.count(message["id"].get<std::string>()) > 0;
         emit(message);
     }
 
@@ -374,13 +436,18 @@ private:
         if (auto const info = handle.torrent_file()) {
             auto const& layout = info->layout();
             auto const done = handle.file_progress(lt::torrent_handle::piece_granularity);
-            int index = 0;
+            auto const priorities = handle.get_file_priorities();
+            std::size_t index = 0;
             for (auto const file : layout.file_range()) {
                 files.push_back({
                     {"path", layout.file_path(file)},
                     {"size", layout.file_size(file)},
-                    {"done", done[static_cast<std::size_t>(index++)]},
+                    {"done", done[index]},
+                    {"wanted", index >= priorities.size() || priorities[index] != lt::dont_download},
+                    // Padding that lines files up with pieces. Never shown, but it keeps its place.
+                    {"pad", layout.pad_file_at(file)},
                 });
+                ++index;
             }
         }
 
@@ -423,6 +490,8 @@ private:
 
     void resume(std::string const& id) {
         auto const& handle = find(id);
+        release(id);
+        handle.unset_flags(lt::torrent_flags::stop_when_ready | lt::torrent_flags::upload_mode);
         handle.clear_error();
         handle.set_flags(lt::torrent_flags::auto_managed);
         handle.resume();
@@ -435,6 +504,7 @@ private:
         session_.remove_torrent(handle, delete_files ? lt::session::delete_files : lt::remove_flags_t{});
         std::error_code ignored;
         fs::remove(resume_path(state_dir_, id), ignored);
+        release(id);
         emit({{"event", "removed"}, {"id", id}});
     }
 
@@ -454,14 +524,25 @@ private:
 
         for (lt::alert* alert : alerts) {
             if (auto* added = lt::alert_cast<lt::add_torrent_alert>(alert)) {
+                std::string const id = id_of(added->params);
+                json reply = {{"event", "added"}, {"id", id}};
+                if (auto const asked = requests_.find(id); asked != requests_.end()) {
+                    reply["request"] = asked->second;
+                    requests_.erase(asked);
+                }
+                bool const held = new_holds_.erase(id) > 0;
                 if (added->error) {
-                    emit_error("", added->error.message());
+                    reply["event"] = "error";
+                    reply["message"] = added->error == lt::errors::duplicate_torrent
+                        ? "That torrent is already in Downloads"
+                        : added->error.message();
+                    emit(reply);
                     continue;
                 }
-                std::string const id = to_id(added->handle.info_hashes());
+                if (held) hold(id);
                 handles_[id] = added->handle;
                 request_save(added->handle);
-                emit({{"event", "added"}, {"id", id}});
+                emit(reply);
                 emit_status(added->handle.status(status_fields));
             } else if (auto* update = lt::alert_cast<lt::state_update_alert>(alert)) {
                 for (auto const& status : update->status) emit_status(status);
@@ -477,6 +558,10 @@ private:
                     emit_status(flushed->handle.status(status_fields));
                 }
             } else if (auto* metadata = lt::alert_cast<lt::metadata_received_alert>(alert)) {
+                if (holding_.count(to_id(metadata->handle.info_hashes()))) {
+                    metadata->handle.pause();
+                    metadata->handle.unset_flags(lt::torrent_flags::upload_mode);
+                }
                 request_save(metadata->handle);
             } else if (auto* saved = lt::alert_cast<lt::save_resume_data_alert>(alert)) {
                 std::string const id = to_id(saved->params.info_hashes);
@@ -503,6 +588,9 @@ private:
     lt::session session_;
     std::map<std::string, lt::torrent_handle> handles_;
     std::set<std::string> flushing_;
+    std::set<std::string> holding_;
+    std::set<std::string> new_holds_;
+    std::map<std::string, std::string> requests_;
     int pending_saves_ = 0;
     clock_type::time_point next_status_ = clock_type::now();
     clock_type::time_point next_save_ = clock_type::now() + std::chrono::seconds(30);
