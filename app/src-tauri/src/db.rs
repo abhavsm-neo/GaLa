@@ -336,6 +336,10 @@ impl Db {
     }
 
     /// Hiding keeps the playtime in case the game comes back.
+    pub fn retry_unmatched(&self) -> rusqlite::Result<usize> {
+        self.0.lock().unwrap().execute("UPDATE games SET meta_state = '' WHERE meta_state = 'unmatched'", [])
+    }
+
     pub fn hide(&self, id: i64) -> rusqlite::Result<()> {
         self.0.lock().unwrap().execute("UPDATE games SET hidden = 1 WHERE id = ?1", [id]).map(|_| ())
     }

@@ -16,6 +16,9 @@ use tokio::{sync::Notify, time};
 
 const TOKEN_URL: &str = "https://id.twitch.tv/oauth2/token";
 const GAMES_URL: &str = "https://api.igdb.com/v4/games";
+const EXTERNAL_URL: &str = "https://api.igdb.com/v4/external_games";
+const STEAM_SOURCE: i64 = 1;
+const STEAM_LAUNCH: &str = "steam://rungameid/";
 const STEAMGRID_URL: &str = "https://www.steamgriddb.com/api/v2";
 const IGDB_IMAGE_URL: &str = "https://images.igdb.com/igdb/image/upload";
 const FIELDS: &str = "name,summary,first_release_date,total_rating,total_rating_count,game_type,\
@@ -99,6 +102,11 @@ struct IgdbGame {
     involved_companies: Vec<Involved>,
 }
 
+#[derive(Deserialize)]
+struct External {
+    game: i64,
+}
+
 #[derive(Serialize)]
 pub struct Match {
     pub igdb_id: i64,
@@ -119,6 +127,11 @@ struct SteamGridGame {
     id: i64,
     name: String,
     release_date: Option<i64>,
+}
+
+#[derive(Deserialize)]
+struct SteamGridOne<T> {
+    data: T,
 }
 
 #[derive(Deserialize)]
@@ -388,10 +401,14 @@ impl Metadata {
     }
 
     async fn igdb(&self, keys: &Keys, body: String) -> Result<Vec<IgdbGame>, String> {
+        self.igdb_at(keys, GAMES_URL, body).await
+    }
+
+    async fn igdb_at<T: serde::de::DeserializeOwned>(&self, keys: &Keys, url: &str, body: String) -> Result<Vec<T>, String> {
         let token = self.access_token(keys).await?;
         let response = self
             .http
-            .post(GAMES_URL)
+            .post(url)
             .header("Client-ID", &keys.igdb_id)
             .bearer_auth(token)
             .body(body)
@@ -404,9 +421,27 @@ impl Metadata {
         response.error_for_status().map_err(net)?.json().await.map_err(net)
     }
 
+    /// IGDB's search ranks some short or common names out of sight ("The Finals" brings back
+    /// only Final Fantasy), so an exact name lookup runs alongside it and comes first.
     async fn search_igdb(&self, keys: &Keys, query: &str) -> Result<Vec<IgdbGame>, String> {
         let query: String = query.chars().filter(|c| !matches!(c, '"' | '\\')).collect();
-        self.igdb(keys, format!("search \"{query}\"; fields {FIELDS}; where platforms = ({WINDOWS}); limit 20;")).await
+        let mut found = self.igdb(keys, format!("fields {FIELDS}; where name ~ \"{query}\" & platforms = ({WINDOWS}); limit 10;")).await?;
+        let searched = self.igdb(keys, format!("search \"{query}\"; fields {FIELDS}; where platforms = ({WINDOWS}); limit 20;")).await?;
+        for game in searched {
+            if !found.iter().any(|known| known.id == game.id) {
+                found.push(game);
+            }
+        }
+        Ok(found)
+    }
+
+    /// Steam's own id names the game exactly, so Steam games skip the guessing.
+    async fn igdb_by_steam(&self, keys: &Keys, steam: &str) -> Result<Option<IgdbGame>, String> {
+        let links: Vec<External> = self
+            .igdb_at(keys, EXTERNAL_URL, format!("fields game; where uid = \"{steam}\" & external_game_source = {STEAM_SOURCE}; limit 1;"))
+            .await?;
+        let Some(link) = links.first() else { return Ok(None) };
+        Ok(self.igdb(keys, format!("fields {FIELDS}; where id = {};", link.game)).await?.into_iter().next())
     }
 
     async fn steamgrid<T: serde::de::DeserializeOwned>(&self, keys: &Keys, path: &str) -> Result<Vec<T>, String> {
@@ -430,20 +465,30 @@ impl Metadata {
         images.into_iter().next().map(|image| image.url)
     }
 
-    async fn steamgrid_art(&self, keys: &Keys, name: &str, released: Option<i64>) -> SteamGridArt {
+    async fn steamgrid_by_steam(&self, keys: &Keys, steam: Option<&str>) -> Option<i64> {
+        let response = self.http.get(format!("{STEAMGRID_URL}/games/steam/{}", steam?)).bearer_auth(&keys.steamgrid).send().await.ok()?;
+        Some(response.error_for_status().ok()?.json::<SteamGridOne<SteamGridGame>>().await.ok()?.data.id)
+    }
+
+    async fn steamgrid_game(&self, keys: &Keys, name: &str, released: Option<i64>, steam: Option<&str>) -> Option<i64> {
+        if let Some(found) = self.steamgrid_by_steam(keys, steam).await {
+            return Some(found);
+        }
         let term: String = name.chars().filter(char::is_ascii).map(|c| if c.is_alphanumeric() { c } else { ' ' }).collect();
         let term = term.split_whitespace().collect::<Vec<_>>().join("%20");
-        let Ok(found) = self.steamgrid::<SteamGridGame>(keys, &format!("/search/autocomplete/{term}")).await else {
-            return SteamGridArt::default();
-        };
-        let Some(game) = pick_steamgrid(&found, name, released) else {
+        let found = self.steamgrid::<SteamGridGame>(keys, &format!("/search/autocomplete/{term}")).await.ok()?;
+        pick_steamgrid(&found, name, released).map(|game| game.id)
+    }
+
+    async fn steamgrid_art(&self, keys: &Keys, name: &str, released: Option<i64>, steam: Option<&str>) -> SteamGridArt {
+        let Some(game) = self.steamgrid_game(keys, name, released, steam).await else {
             return SteamGridArt::default();
         };
         let filters = "types=static&nsfw=false&humor=false";
         SteamGridArt {
-            cover: self.first_image(keys, &format!("/grids/game/{}?dimensions=600x900,660x930&{filters}", game.id)).await,
-            hero: self.first_image(keys, &format!("/heroes/game/{}?{filters}", game.id)).await,
-            logo: self.first_image(keys, &format!("/logos/game/{}?{filters}", game.id)).await,
+            cover: self.first_image(keys, &format!("/grids/game/{game}?dimensions=600x900,660x930&{filters}")).await,
+            hero: self.first_image(keys, &format!("/heroes/game/{game}?{filters}")).await,
+            logo: self.first_image(keys, &format!("/logos/game/{game}?{filters}")).await,
         }
     }
 
@@ -464,7 +509,8 @@ impl Metadata {
         let folder = art_folder(app)?.join(game.id.to_string());
         fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
 
-        let art = self.steamgrid_art(keys, &game.name, game.first_release_date).await;
+        let steam = steam_id(app, id);
+        let art = self.steamgrid_art(keys, &game.name, game.first_release_date, steam.as_deref()).await;
         // The official cover goes first, since community covers vary a lot.
         let cover = game.cover.as_ref().map(|image| igdb_image("t_cover_big_2x", image)).or(art.cover);
         let hero = art.hero.or(game.artworks.first().or(game.screenshots.first()).map(|image| igdb_image("t_1080p", image)));
@@ -495,6 +541,11 @@ impl Metadata {
 
     async fn identify(&self, app: &AppHandle, id: i64, name: &str) -> Result<(), String> {
         let keys = load_keys(app).ok_or(NO_KEYS)?;
+        if let Some(steam) = steam_id(app, id) {
+            if let Some(game) = self.igdb_by_steam(&keys, &steam).await? {
+                return self.apply(app, &keys, id, game).await;
+            }
+        }
         let query = clean_name(name);
         let found = if query.is_empty() { Vec::new() } else { self.search_igdb(&keys, &query).await? };
         match best(&query, found) {
@@ -533,6 +584,13 @@ impl Metadata {
     }
 }
 
+/// The Steam app id of a game that opens in Steam.
+fn steam_id(app: &AppHandle, id: i64) -> Option<String> {
+    let game = app.state::<Db>().game(id).ok()??;
+    let steam = game.launch_uri?.strip_prefix(STEAM_LAUNCH)?.to_string();
+    steam.chars().all(|c| c.is_ascii_digit()).then_some(steam)
+}
+
 fn art_folder(app: &AppHandle) -> Result<PathBuf, String> {
     app.path().app_local_data_dir().map(|dir| dir.join("art")).map_err(|e| e.to_string())
 }
@@ -541,6 +599,10 @@ fn art_folder(app: &AppHandle) -> Result<PathBuf, String> {
 pub fn start_worker(app: &AppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
+        // Matching improves between versions, so games it missed before get another go.
+        if let Err(error) = app.state::<Db>().retry_unmatched() {
+            eprintln!("retrying unmatched games: {error}");
+        }
         loop {
             let metadata = app.state::<Metadata>();
             while let Ok(Some((id, name))) = app.state::<Db>().next_unidentified() {
