@@ -6,3 +6,6 @@ build/
 *.log
 app/src-tauri/gen/
 app/src-tauri/binaries/
+
+# Game files, never part of the code
+Games/
