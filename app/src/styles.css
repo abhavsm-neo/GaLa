@@ -257,3 +257,19 @@ button.gcard{cursor:pointer;transition:.15s}button.gcard:hover{border-color:var(
 .homenews .nrows{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 16px}
 .feedlist{max-height:260px;overflow:auto}.feedadd{display:flex;gap:8px;margin-top:8px}.feedadd .field{flex:1}
 @media (max-width:1100px){.homenews .nrows{grid-template-columns:1fr}}
+/* Can your PC run it? */
+.pcfit{position:absolute;left:7px;bottom:7px;z-index:1;padding:2px 7px;border-radius:5px;background:rgba(5,6,9,.82);backdrop-filter:blur(5px);font:800 10.5px var(--ui)}
+.pcfit.well{color:var(--go)}.pcfit.lower{color:var(--warn)}.pcfit.below{color:var(--bad)}
+.verdict{display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:9px;background:var(--s2);border-left:3px solid var(--t3);margin-bottom:10px}
+.verdict b{font:700 18px var(--disp)}.verdict span{color:var(--t2);font-size:12.5px}
+.verdict.well{border-color:var(--go)}.verdict.well b{color:var(--go)}.verdict.lower{border-color:var(--warn)}.verdict.lower b{color:var(--warn)}
+.verdict.below{border-color:var(--bad)}.verdict.below b{color:var(--bad)}
+.pctable{width:100%;border-collapse:collapse;font-size:12.5px;table-layout:fixed}
+.pctable th,.pctable td{padding:5px 4px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pctable thead th{color:var(--t3);font-size:11px;font-weight:800}.pctable thead th:first-child{width:30%}.pctable thead th:nth-child(3),.pctable thead th:nth-child(4){width:42px;text-align:center}
+.pctable tbody th{color:var(--t2);font-weight:700}.pctable td:nth-child(3),.pctable td:nth-child(4){text-align:center}
+.pctable i{font-style:normal;font-weight:800}.pctable .y{color:var(--go)}.pctable .n{color:var(--bad)}.pctable .q{color:var(--t3)}
+.linkbtn{color:var(--info);font-size:12.5px;font-weight:700;margin-top:9px}.linkbtn:hover{text-decoration:underline}
+.reqtext{margin-top:8px;display:grid;gap:8px}.reqtext small{color:var(--t3);font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:.8px}.reqtext p{margin:2px 0;font-size:12.5px;color:var(--t2)}
+.addcheck{margin:0 0 12px}.addcheck>small{display:block;color:var(--t3);font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px}.addcheck .note{display:none}
+.pctable td:nth-child(2){white-space:normal;word-break:break-word;line-height:1.3}

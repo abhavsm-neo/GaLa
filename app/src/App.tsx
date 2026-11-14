@@ -13,6 +13,7 @@ import { GamePage } from './pages/GamePage';
 import { Home } from './pages/Home';
 import { Library } from './pages/Library';
 import { News } from './pages/News';
+import { useVerdicts, VerdictContext } from './components/PcCheck';
 import { Stats } from './pages/Stats';
 import { useEngine } from './useEngine';
 import { useLibrary } from './useLibrary';
@@ -80,6 +81,7 @@ export function App() {
   const { connected, torrents, detail, history } = useEngine(toast);
   const { games, running, installing, moving } = useLibrary();
   const news = useNews();
+  const verdicts = useVerdicts();
   const unreadNews = news.articles.filter(a => !a.read).length;
 
   const go = (next: Route) => {
@@ -171,6 +173,7 @@ export function App() {
   const seeding = torrents.filter(t => t.state === 'seeding' && !t.paused).length;
 
   return (
+    <VerdictContext.Provider value={verdicts}>
     <div className="shell">
       <header className="titlebar" data-tauri-drag-region>
         <div className="brand" aria-label="GaLa">
@@ -303,5 +306,6 @@ export function App() {
       )}
       <div id="toast" role="status" className={message ? 'open' : ''}>{message}</div>
     </div>
+    </VerdictContext.Provider>
   );
 }

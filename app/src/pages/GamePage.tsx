@@ -7,6 +7,7 @@ import { InstallDialog } from '../components/InstallDialog';
 import { MatchDialog } from '../components/MatchDialog';
 import { MoveDialog } from '../components/MoveDialog';
 import { NewsRow } from '../components/NewsCards';
+import { PcPanel } from '../components/PcCheck';
 import { gamesIn } from '../useNews';
 import { bytes, lastPlayed, playtime, tint } from '../format';
 
@@ -368,6 +369,7 @@ export function GamePage({ game, categories, running, installing, moving, instal
             </div>
           </div>
           <aside>
+            <PcPanel gameId={game.id} />
             <div className="panel">
               <h3>Your progress</h3>
               <div className="chips">

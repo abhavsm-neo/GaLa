@@ -1,5 +1,6 @@
 mod db;
 mod engine;
+mod hardware;
 mod installer;
 mod library;
 mod metadata;
@@ -10,6 +11,7 @@ mod saves;
 mod scanner;
 mod seeding;
 mod settings;
+mod specs;
 
 use db::{Article, DayPlaytime, Db, Game, GamePatch};
 use engine::Engine;
@@ -245,6 +247,26 @@ fn set_seed_rule(store: State<Store>, rule: String) -> Result<Settings, String> 
 }
 
 #[tauri::command]
+fn pc_specs() -> specs::Pc {
+    specs::pc().clone()
+}
+
+#[tauri::command]
+async fn pc_check(app: AppHandle, id: i64) -> Result<Option<specs::Check>, String> {
+    specs::check_game(&app, id).await
+}
+
+#[tauri::command]
+async fn pc_check_name(app: AppHandle, name: String) -> Result<Option<specs::Check>, String> {
+    specs::check_name(&app, &name).await
+}
+
+#[tauri::command]
+async fn pc_verdicts(app: AppHandle) -> Vec<(i64, String, String)> {
+    tauri::async_runtime::spawn_blocking(move || specs::verdicts(&app)).await.unwrap_or_default()
+}
+
+#[tauri::command]
 fn news_list(app: AppHandle) -> Result<Vec<Article>, String> {
     news::list(&app)
 }
@@ -429,6 +451,11 @@ pub fn run() {
             metadata::start_worker(handle);
             app.manage(News::default());
             news::start_worker(handle);
+            specs::start_worker(handle);
+            // Reading the parts takes a moment, so it happens before anyone asks.
+            std::thread::spawn(|| {
+                specs::pc();
+            });
             app.manage(Mover::default());
             app.manage(Saves::default());
             app.manage(Seeder::default());
@@ -447,6 +474,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             engine_snapshot,
             news_list,
+            pc_specs,
+            pc_check,
+            pc_check_name,
+            pc_verdicts,
             news_image,
             news_mark_read,
             news_mark_all_read,

@@ -255,7 +255,7 @@ fn battlenet_product(text: &str) -> Option<String> {
     values.split('|').nth(column).map(str::to_string).filter(|product| !product.is_empty())
 }
 
-fn registry(args: &[&str]) -> String {
+pub fn registry(args: &[&str]) -> String {
     Command::new("reg")
         .args(args)
         .creation_flags(CREATE_NO_WINDOW)
@@ -263,7 +263,7 @@ fn registry(args: &[&str]) -> String {
         .map_or(String::new(), |output| String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
-fn registry_value(key: &str, name: &str) -> Option<String> {
+pub fn registry_value(key: &str, name: &str) -> Option<String> {
     registry(&["query", key, "/v", name]).lines().find_map(|line| Some(line.split_once("REG_SZ")?.1.trim().to_string()))
 }
 

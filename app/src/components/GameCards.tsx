@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { Game, Running } from '../api';
 import { api } from '../api';
 import { lastPlayed, playtime, tint } from '../format';
+import { VerdictBadge } from './PcCheck';
 
 export type GameActions = {
   open: (id: number) => void;
@@ -59,6 +60,7 @@ export function Capsule({ game, actions, rated }: { game: Game; actions: GameAct
       {game.favorite && <span className="fav" aria-label="Favourite">♥</span>}
       <div style={{ position: 'relative' }}>
         <GameArt game={game} />
+        <VerdictBadge gameId={game.id} />
         {rated && game.igdb_rating != null && <span className="score">{Math.round(game.igdb_rating)}</span>}
         <div className="hov" style={{ borderRadius: 9 }}>
           <small>{playtime(game.total_seconds)}</small>

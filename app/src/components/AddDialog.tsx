@@ -3,6 +3,8 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { useEffect, useState } from 'react';
 import { api, type Settings } from '../api';
 import { ChooseFiles } from './FileTree';
+import { CheckTable } from './PcCheck';
+import type { PcCheck } from '../api';
 
 type Props = {
   settings: Settings;
@@ -23,6 +25,26 @@ export function AddDialog({ settings, initialFile, initialMagnet, onClose, onAdd
   const [request, setRequest] = useState('');
   const [held, setHeld] = useState('');
   const [saved, setSaved] = useState(settings);
+  const [name, setName] = useState('');
+  const [check, setCheck] = useState<PcCheck | null | undefined>(undefined);
+
+  // The torrent's own name arrives with its first status, which for a magnet is after its file list.
+  useEffect(() => {
+    if (!held) return;
+    const stop = listen<{ event: string; id?: string; name?: string; state?: string }>('engine-event', ({ payload }) => {
+      if (payload.event === 'progress' && payload.id === held && payload.name && payload.name !== held && payload.state !== 'metadata') {
+        setName(payload.name);
+      }
+    });
+    return () => void stop.then(fn => fn());
+  }, [held]);
+
+  useEffect(() => {
+    if (!name) return;
+    let stale = false;
+    api.pcCheckName(name).then(found => !stale && setCheck(found), () => !stale && setCheck(null));
+    return () => { stale = true; };
+  }, [name]);
 
   // The engine names the torrent once it's added, and the request ties that answer to this dialog.
   useEffect(() => {
@@ -71,7 +93,8 @@ export function AddDialog({ settings, initialFile, initialMagnet, onClose, onAdd
         <h2>{held ? 'Choose files' : 'Add a game'}</h2>
         {held ? (
           <>
-            <p className="note" style={{ marginTop: 0 }}>{title} · Saving to {folder}</p>
+            <p className="note" style={{ marginTop: 0 }}>{name || title} · Saving to {folder}</p>
+            {check && <div className="addcheck"><small>Can your PC run it?</small><CheckTable check={check} compact /></div>}
             <ChooseFiles
               id={held}
               savePath={folder}

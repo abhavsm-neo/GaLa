@@ -45,6 +45,25 @@ export type Settings = {
 
 export type NewsFeed = { name: string; url: string };
 
+export type PcRow = {
+  part: string;
+  yours: string;
+  minimum: string | null;
+  recommended: string | null;
+  meets_minimum: boolean | null;
+  meets_recommended: boolean | null;
+};
+
+export type PcCheck = {
+  steam_id: string;
+  name: string;
+  verdict: 'well' | 'lower' | 'below' | 'unknown';
+  summary: string;
+  rows: PcRow[];
+  minimum: string[];
+  recommended: string[];
+};
+
 export type Article = {
   id: number;
   source: string;
@@ -163,6 +182,9 @@ export const api = {
   play: (id: number) => invoke<void>('play_game', { id }),
   stop: () => invoke<void>('stop_game'),
   running: () => invoke<Running | null>('running_game'),
+  pcCheck: (id: number) => invoke<PcCheck | null>('pc_check', { id }),
+  pcCheckName: (name: string) => invoke<PcCheck | null>('pc_check_name', { name }),
+  pcVerdicts: () => invoke<[number, string, string][]>('pc_verdicts'),
   newsList: () => invoke<Article[]>('news_list'),
   newsImage: (id: number) => invoke<string | null>('news_image', { id }),
   newsMarkRead: (ids: number[]) => invoke<void>('news_mark_read', { ids }),

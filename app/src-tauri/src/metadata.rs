@@ -26,7 +26,7 @@ const FIELDS: &str = "name,summary,first_release_date,total_rating,total_rating_
     involved_companies.developer,involved_companies.publisher,involved_companies.company.name";
 const WINDOWS: i64 = 6;
 const MAIN_GAME_TYPES: &[i64] = &[0, 4, 8, 9, 10, 11];
-const ACCEPTED: f64 = 0.75;
+pub const ACCEPTED: f64 = 0.75;
 const MAX_YEARS_APART: i64 = 2;
 const SCREENSHOTS: usize = 6;
 const RETRY: Duration = Duration::from_secs(5 * 60);
@@ -220,7 +220,7 @@ pub fn words(text: &str) -> Vec<String> {
         .collect()
 }
 
-fn similarity(query: &str, name: &str) -> f64 {
+pub fn similarity(query: &str, name: &str) -> f64 {
     let (wanted, found) = (words(query), words(name));
     if wanted.is_empty() || found.is_empty() {
         return 0.0;

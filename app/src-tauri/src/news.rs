@@ -136,6 +136,11 @@ pub fn plain_text(html: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+/// Like `plain_text`, but keeps line breaks, for text laid out in lines.
+pub fn plain_text_lines(html: &str) -> String {
+    html.lines().map(plain_text).collect::<Vec<_>>().join("\n")
+}
+
 /// Steam posts use BBCode and an image placeholder rather than HTML.
 fn steam_text(contents: &str) -> String {
     let mut text = String::with_capacity(contents.len());

@@ -71,6 +71,15 @@ CREATE TABLE news (
     read INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX news_published ON news (published);
+", "
+CREATE TABLE requirements (
+    game_id INTEGER PRIMARY KEY,
+    steam_id TEXT,
+    name TEXT NOT NULL DEFAULT '',
+    minimum TEXT NOT NULL DEFAULT '',
+    recommended TEXT NOT NULL DEFAULT '',
+    fetched INTEGER NOT NULL
+);
 "];
 
 const TWO_WEEKS: i64 = 14 * 24 * 60 * 60;
@@ -210,6 +219,12 @@ fn to_game(row: &Row) -> rusqlite::Result<Game> {
 }
 
 pub struct Db(Mutex<Connection>);
+
+use crate::specs::Stored;
+
+fn to_stored(row: &Row) -> rusqlite::Result<Stored> {
+    Ok(Stored { steam_id: row.get(0)?, name: row.get(1)?, minimum: row.get(2)?, recommended: row.get(3)?, fetched: row.get(4)? })
+}
 
 #[derive(Serialize)]
 pub struct Article {
@@ -440,6 +455,43 @@ impl Db {
             .collect::<rusqlite::Result<Vec<String>>>()?;
         connection.execute(&format!("DELETE FROM news WHERE {filter}"), values)?;
         Ok(images)
+    }
+
+    pub fn requirements(&self, game_id: i64) -> rusqlite::Result<Option<crate::specs::Stored>> {
+        self.0.lock().unwrap()
+            .query_row("SELECT steam_id, name, minimum, recommended, fetched FROM requirements WHERE game_id = ?1", [game_id], to_stored)
+            .optional()
+    }
+
+    pub fn all_requirements(&self) -> rusqlite::Result<Vec<(i64, crate::specs::Stored)>> {
+        let connection = self.0.lock().unwrap();
+        let mut query = connection.prepare("SELECT game_id, steam_id, name, minimum, recommended, fetched FROM requirements")?;
+        let rows = query.query_map([], |row| Ok((row.get(0)?, Stored {
+            steam_id: row.get(1)?,
+            name: row.get(2)?,
+            minimum: row.get(3)?,
+            recommended: row.get(4)?,
+            fetched: row.get(5)?,
+        })))?.collect();
+        rows
+    }
+
+    pub fn set_requirements(&self, game_id: i64, stored: &crate::specs::Stored) -> rusqlite::Result<()> {
+        self.0.lock().unwrap().execute(
+            "INSERT OR REPLACE INTO requirements (game_id, steam_id, name, minimum, recommended, fetched) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![game_id, stored.steam_id, stored.name, stored.minimum, stored.recommended, stored.fetched],
+        ).map(|_| ())
+    }
+
+    /// Library games never looked up, or looked up before `before`.
+    pub fn games_needing_requirements(&self, before: i64) -> rusqlite::Result<Vec<(i64, Option<String>, String)>> {
+        let connection = self.0.lock().unwrap();
+        let mut query = connection.prepare(
+            "SELECT g.id, g.launch_uri, g.name FROM games g LEFT JOIN requirements r ON r.game_id = g.id
+             WHERE g.hidden = 0 AND (r.game_id IS NULL OR r.fetched < ?1) ORDER BY g.id",
+        )?;
+        let rows = query.query_map([before], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?.collect();
+        rows
     }
 
     pub fn retry_unmatched(&self) -> rusqlite::Result<usize> {
