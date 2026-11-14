@@ -1,7 +1,9 @@
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { useEffect, useMemo, useState } from 'react';
-import { api, type DayPlaytime, type Game, type Running, type Torrent } from '../api';
+import { api, type Article, type DayPlaytime, type Game, type Running, type Torrent } from '../api';
 import { Banner, Capsule, GameArt, PlayBox, installLabel, playable, type GameActions } from '../components/GameCards';
+import { NewsRow } from '../components/NewsCards';
+import { gamesIn } from '../useNews';
 import { bytes, eta, isFinished, lastPlayed, percent, playtime, stateLabel } from '../format';
 
 type Props = {
@@ -12,6 +14,9 @@ type Props = {
   actions: GameActions;
   goLibrary: () => void;
   goDownloads: () => void;
+  articles: Article[];
+  markRead: (ids: number[]) => void;
+  goNews: () => void;
 };
 
 const ROTATE_MS = 9000;
@@ -166,7 +171,7 @@ function Shelf({ title, note, wide, games, actions, index }: {
   );
 }
 
-export function Home({ games, running, torrents, downloadDir, actions, goLibrary, goDownloads }: Props) {
+export function Home({ games, running, torrents, downloadDir, actions, goLibrary, goDownloads, articles, markRead, goNews }: Props) {
   const [index, setIndex] = useState(0);
   const [pick, setPick] = useState<Game | null>(null);
   const [paused, setPaused] = useState(false);
@@ -262,6 +267,14 @@ export function Home({ games, running, torrents, downloadDir, actions, goLibrary
           {pick && <button className="btn sm" onClick={() => setPick(null)}>Back</button>}
         </div>
         <Glance games={games} torrents={torrents} downloadDir={downloadDir} days={days} goDownloads={goDownloads} />
+        {articles.length > 0 && (
+          <section className="shelf rise homenews" style={{ '--i': 0 } as React.CSSProperties}>
+            <div className="shelfhead"><h2>Latest news</h2><button onClick={goNews}>See all</button></div>
+            <div className="nrows">
+              {articles.slice(0, 6).map(a => <NewsRow key={a.id} article={a} games={gamesIn(a, games)} markRead={markRead} />)}
+            </div>
+          </section>
+        )}
         <Shelf index={0} title="Jump back in" note="Your recent sessions" wide games={played.slice(0, 6)} actions={actions} />
         <Shelf index={1} title="Favourites" games={favourites} actions={actions} />
         <Shelf index={2} title="New in your library" games={added.slice(0, 10)} actions={actions} />

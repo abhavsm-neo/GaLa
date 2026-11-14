@@ -1,11 +1,13 @@
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { ask, open } from '@tauri-apps/plugin-dialog';
 import { useEffect, useState } from 'react';
-import { api, type DayPlaytime, type Game, type InstallProgress, type MoveProgress, type Running, type SaveStatus } from '../api';
+import { api, type Article, type DayPlaytime, type Game, type InstallProgress, type MoveProgress, type Running, type SaveStatus } from '../api';
 import { GameArt, installLabel, PlayBox, playable, type GameActions } from '../components/GameCards';
 import { InstallDialog } from '../components/InstallDialog';
 import { MatchDialog } from '../components/MatchDialog';
 import { MoveDialog } from '../components/MoveDialog';
+import { NewsRow } from '../components/NewsCards';
+import { gamesIn } from '../useNews';
 import { bytes, lastPlayed, playtime, tint } from '../format';
 
 const STATUSES = ['Playing', 'Backlog', 'Finished', 'Dropped'];
@@ -216,6 +218,18 @@ function ExePicker({ game }: { game: Game }) {
   );
 }
 
+function GameNews({ game, articles, markRead }: { game: Game; articles: Article[]; markRead: (ids: number[]) => void }) {
+  const mine = articles.filter(a => gamesIn(a, [game]).length > 0).slice(0, 5);
+  if (!mine.length) return null;
+  const patches = mine.some(a => a.game_id === game.id);
+  return (
+    <div className="panel">
+      <h3>{patches ? 'News and patch notes' : 'In the news'}</h3>
+      <div className="nrows">{mine.map(a => <NewsRow key={a.id} article={a} games={[game]} markRead={markRead} />)}</div>
+    </div>
+  );
+}
+
 function InstallBar({ game, installing, onInstall }: { game: Game; installing: InstallProgress | null; onInstall: () => void }) {
   const here = installing?.game_id === game.id ? installing : null;
   if (['queued', 'extracting', 'installing', 'detecting'].includes(game.install_state)) {
@@ -244,7 +258,7 @@ function MoveBar({ moving }: { moving: MoveProgress }) {
   );
 }
 
-export function GamePage({ game, categories, running, installing, moving, installFolder, actions, onInstall }: {
+export function GamePage({ game, categories, running, installing, moving, installFolder, actions, onInstall, articles, markRead }: {
   game: Game | undefined;
   categories: string[];
   running: Running | null;
@@ -253,6 +267,8 @@ export function GamePage({ game, categories, running, installing, moving, instal
   installFolder: string;
   actions: GameActions;
   onInstall: (folder: string) => void;
+  articles: Article[];
+  markRead: (ids: number[]) => void;
 }) {
   const [tab, setTab] = useState('Overview');
   const [dialog, setDialog] = useState(false);
@@ -334,6 +350,7 @@ export function GamePage({ game, categories, running, installing, moving, instal
               </div>
             )}
             {game.summary && <div className="panel"><h3>About this game</h3><p>{game.summary}</p></div>}
+            <GameNews game={game} articles={articles} markRead={markRead} />
             <Screenshots game={game} />
             <Sessions game={game} />
             <SaveBackups game={game} disabled={isRunning} />

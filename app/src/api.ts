@@ -40,6 +40,22 @@ export type Settings = {
   up_limit: number;
   backup_dir: string;
   seed_rule: string;
+  news_feeds: NewsFeed[];
+};
+
+export type NewsFeed = { name: string; url: string };
+
+export type Article = {
+  id: number;
+  source: string;
+  title: string;
+  summary: string;
+  url: string;
+  image: string | null;
+  has_image: boolean;
+  published: number;
+  game_id: number | null;
+  read: boolean;
 };
 
 export type Game = {
@@ -147,5 +163,13 @@ export const api = {
   play: (id: number) => invoke<void>('play_game', { id }),
   stop: () => invoke<void>('stop_game'),
   running: () => invoke<Running | null>('running_game'),
+  newsList: () => invoke<Article[]>('news_list'),
+  newsImage: (id: number) => invoke<string | null>('news_image', { id }),
+  newsMarkRead: (ids: number[]) => invoke<void>('news_mark_read', { ids }),
+  newsMarkAllRead: () => invoke<void>('news_mark_all_read'),
+  newsRefresh: () => invoke<void>('news_refresh'),
+  checkNewsFeed: (url: string) => invoke<string>('check_news_feed', { url }),
+  setNewsFeeds: (feeds: NewsFeed[]) => invoke<Settings>('set_news_feeds', { feeds }),
+  openUrl: (url: string) => invoke<void>('open_url', { url }),
   playtimeByDay: (gameId: number | null, days: number) => invoke<DayPlaytime[]>('playtime_by_day', { gameId, days }),
 };

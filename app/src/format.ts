@@ -42,6 +42,16 @@ export function playtime(seconds: number) {
   return `${(seconds / 3600).toFixed(1)} h`;
 }
 
+export function ago(when: number) {
+  const minutes = Math.max(0, Math.floor((Date.now() / 1000 - when) / 60));
+  if (minutes < 60) return minutes <= 1 ? 'Just now' : `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return days === 1 ? 'Yesterday' : `${days} days ago`;
+  return new Date(when * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
 export function lastPlayed(when: number | null) {
   if (!when) return 'Never';
   const days = Math.floor((new Date().setHours(24, 0, 0, 0) - when * 1000) / 86400000);

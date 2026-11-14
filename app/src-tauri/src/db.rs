@@ -56,6 +56,21 @@ ALTER TABLE games ADD COLUMN save_folder TEXT;
 ", "
 ALTER TABLE games ADD COLUMN launcher TEXT NOT NULL DEFAULT '';
 ALTER TABLE games ADD COLUMN launch_uri TEXT;
+", "
+CREATE TABLE news (
+    id INTEGER PRIMARY KEY,
+    key TEXT NOT NULL UNIQUE,
+    source TEXT NOT NULL,
+    title TEXT NOT NULL,
+    summary TEXT NOT NULL DEFAULT '',
+    url TEXT NOT NULL,
+    image_url TEXT,
+    image TEXT,
+    published INTEGER NOT NULL,
+    game_id INTEGER,
+    read INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX news_published ON news (published);
 "];
 
 const TWO_WEEKS: i64 = 14 * 24 * 60 * 60;
@@ -195,6 +210,20 @@ fn to_game(row: &Row) -> rusqlite::Result<Game> {
 }
 
 pub struct Db(Mutex<Connection>);
+
+#[derive(Serialize)]
+pub struct Article {
+    pub id: i64,
+    pub source: String,
+    pub title: String,
+    pub summary: String,
+    pub url: String,
+    pub image: Option<String>,
+    pub has_image: bool,
+    pub published: i64,
+    pub game_id: Option<i64>,
+    pub read: bool,
+}
 
 impl Db {
     pub fn open(path: &Path) -> rusqlite::Result<Self> {
@@ -336,6 +365,83 @@ impl Db {
     }
 
     /// Hiding keeps the playtime in case the game comes back.
+    /// True when the article is new.
+    pub fn add_article(&self, article: &crate::news::Fresh) -> rusqlite::Result<bool> {
+        self.0.lock().unwrap().execute(
+            "INSERT OR IGNORE INTO news (key, source, title, summary, url, image_url, published, game_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![article.key, article.source, article.title, article.summary, article.url, article.image_url, article.published, article.game_id],
+        ).map(|added| added > 0)
+    }
+
+    pub fn articles(&self, since: i64) -> rusqlite::Result<Vec<Article>> {
+        let connection = self.0.lock().unwrap();
+        let mut query = connection.prepare(
+            "SELECT id, source, title, summary, url, image, image_url IS NOT NULL, published, game_id, read
+             FROM news WHERE published >= ?1 ORDER BY published DESC LIMIT 4000",
+        )?;
+        let articles = query
+            .query_map([since], |row| {
+                Ok(Article {
+                    id: row.get(0)?,
+                    source: row.get(1)?,
+                    title: row.get(2)?,
+                    summary: row.get(3)?,
+                    url: row.get(4)?,
+                    image: row.get(5)?,
+                    has_image: row.get(6)?,
+                    published: row.get(7)?,
+                    game_id: row.get(8)?,
+                    read: row.get(9)?,
+                })
+            })?
+            .collect();
+        articles
+    }
+
+    pub fn article_image(&self, id: i64) -> rusqlite::Result<Option<(Option<String>, Option<String>)>> {
+        self.0.lock().unwrap()
+            .query_row("SELECT image, image_url FROM news WHERE id = ?1", [id], |row| Ok((row.get(0)?, row.get(1)?)))
+            .optional()
+    }
+
+    /// A picture that can't be used is forgotten, so it isn't fetched again.
+    pub fn set_article_image(&self, id: i64, path: Option<&str>, usable: bool) -> rusqlite::Result<()> {
+        let sql = if usable { "UPDATE news SET image = ?2 WHERE id = ?1" } else { "UPDATE news SET image = ?2, image_url = NULL WHERE id = ?1" };
+        self.0.lock().unwrap().execute(sql, params![id, path]).map(|_| ())
+    }
+
+    pub fn mark_read(&self, ids: &[i64]) -> rusqlite::Result<()> {
+        let connection = self.0.lock().unwrap();
+        for id in ids {
+            connection.execute("UPDATE news SET read = 1 WHERE id = ?1", [id])?;
+        }
+        Ok(())
+    }
+
+    pub fn mark_all_read(&self) -> rusqlite::Result<()> {
+        self.0.lock().unwrap().execute("UPDATE news SET read = 1 WHERE read = 0", []).map(|_| ())
+    }
+
+    /// Removes old articles, and those of feeds no longer followed. Returns their pictures to delete.
+    pub fn prune_articles(&self, since: i64) -> rusqlite::Result<Vec<String>> {
+        self.drop_articles("published < ?1", params![since])
+    }
+
+    pub fn drop_source(&self, source: &str) -> rusqlite::Result<Vec<String>> {
+        self.drop_articles("source = ?1", params![source])
+    }
+
+    fn drop_articles(&self, filter: &str, values: &[&dyn rusqlite::ToSql]) -> rusqlite::Result<Vec<String>> {
+        let connection = self.0.lock().unwrap();
+        let images = connection
+            .prepare(&format!("SELECT image FROM news WHERE image IS NOT NULL AND {filter}"))?
+            .query_map(values, |row| row.get(0))?
+            .collect::<rusqlite::Result<Vec<String>>>()?;
+        connection.execute(&format!("DELETE FROM news WHERE {filter}"), values)?;
+        Ok(images)
+    }
+
     pub fn retry_unmatched(&self) -> rusqlite::Result<usize> {
         self.0.lock().unwrap().execute("UPDATE games SET meta_state = '' WHERE meta_state = 'unmatched'", [])
     }

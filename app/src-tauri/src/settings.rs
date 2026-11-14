@@ -3,6 +3,21 @@ use std::{fs, path::PathBuf, sync::Mutex};
 use tauri::{AppHandle, Manager};
 
 #[derive(Clone, Serialize, Deserialize)]
+pub struct NewsFeed {
+    pub name: String,
+    pub url: String,
+}
+
+const DEFAULT_FEEDS: &[(&str, &str)] = &[
+    ("PC Gamer", "https://www.pcgamer.com/rss/"),
+    ("Rock Paper Shotgun", "https://www.rockpapershotgun.com/feed"),
+    ("Eurogamer", "https://www.eurogamer.net/feed"),
+    ("IGN", "https://feeds.feedburner.com/ign/all"),
+    ("GameSpot", "https://www.gamespot.com/feeds/mashup/"),
+    ("Polygon", "https://www.polygon.com/rss/index.xml"),
+];
+
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
     pub download_dir: String,
@@ -11,6 +26,7 @@ pub struct Settings {
     pub up_limit: u64,
     pub backup_dir: String,
     pub seed_rule: String,
+    pub news_feeds: Vec<NewsFeed>,
 }
 
 impl Default for Settings {
@@ -22,6 +38,7 @@ impl Default for Settings {
             up_limit: 0,
             backup_dir: r"E:\GaLa\Save Backups".into(),
             seed_rule: "forever".into(),
+            news_feeds: DEFAULT_FEEDS.iter().map(|(name, url)| NewsFeed { name: (*name).into(), url: (*url).into() }).collect(),
         }
     }
 }

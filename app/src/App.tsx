@@ -12,11 +12,13 @@ import { Downloads } from './pages/Downloads';
 import { GamePage } from './pages/GamePage';
 import { Home } from './pages/Home';
 import { Library } from './pages/Library';
+import { News } from './pages/News';
 import { Stats } from './pages/Stats';
 import { useEngine } from './useEngine';
 import { useLibrary } from './useLibrary';
+import { useNews } from './useNews';
 
-const PAGES = ['Home', 'Library', 'Downloads', 'Stats'];
+const PAGES = ['Home', 'Library', 'Downloads', 'News', 'Stats'];
 type Route = { page: string; game?: number };
 
 function NowPlaying({ name, startedAt, onOpen, onStop }: { name: string; startedAt: number; onOpen: () => void; onStop: () => void }) {
@@ -77,6 +79,8 @@ export function App() {
 
   const { connected, torrents, detail, history } = useEngine(toast);
   const { games, running, installing, moving } = useLibrary();
+  const news = useNews();
+  const unreadNews = news.articles.filter(a => !a.read).length;
 
   const go = (next: Route) => {
     if (next.page === route.page && next.game === route.game) return;
@@ -175,7 +179,10 @@ export function App() {
         <button className="hist" aria-label="Back" onClick={goBack}>‹</button>
         <button className="hist" aria-label="Forward" onClick={goForward}>›</button>
         {PAGES.map(name => (
-          <button key={name} className={`nav ${page === name || (page === 'Game' && name === 'Library') ? 'on' : ''}`} onClick={() => setPage(name)}>{name}</button>
+          <button key={name} className={`nav ${page === name || (page === 'Game' && name === 'Library') ? 'on' : ''}`} onClick={() => setPage(name)}>
+            {name}
+            {name === 'News' && unreadNews > 0 && <span className="navcount">{unreadNews > 99 ? '99+' : unreadNews}</span>}
+          </button>
         ))}
         <span className="spacer" data-tauri-drag-region />
         <DownloadPill torrents={torrents} onClick={() => setPage('Downloads')} />
@@ -197,6 +204,19 @@ export function App() {
             actions={actions}
             goLibrary={() => setPage('Library')}
             goDownloads={() => setPage('Downloads')}
+            articles={news.articles}
+            markRead={news.markRead}
+            goNews={() => setPage('News')}
+          />
+        )}
+        {page === 'News' && (
+          <News
+            articles={news.articles}
+            games={games}
+            settings={settings}
+            markRead={news.markRead}
+            markAllRead={news.markAllRead}
+            onSettings={setSettings}
           />
         )}
         {page === 'Library' && <Library games={games} actions={actions} />}
@@ -210,6 +230,8 @@ export function App() {
             installing={installing}
             moving={moving}
             installFolder={settings?.install_dir ?? 'E:\\GaLa\\Games'}
+            articles={news.articles}
+            markRead={news.markRead}
             actions={actions}
             onInstall={folder => settings && setSettings({ ...settings, install_dir: folder })}
           />

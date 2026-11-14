@@ -4,23 +4,25 @@ mod installer;
 mod library;
 mod metadata;
 mod mover;
+mod news;
 mod player;
 mod saves;
 mod scanner;
 mod seeding;
 mod settings;
 
-use db::{DayPlaytime, Db, Game, GamePatch};
+use db::{Article, DayPlaytime, Db, Game, GamePatch};
 use engine::Engine;
 use installer::{Installer, Progress};
 use metadata::{Match, Metadata};
 use mover::{MoveProgress, Mover};
+use news::News;
 use player::{Player, Running};
 use saves::{SaveStatus, Saves};
 use scanner::Found;
 use seeding::Seeder;
 use serde_json::json;
-use settings::{Settings, Store};
+use settings::{NewsFeed, Settings, Store};
 use std::{path::Path, process::Command, sync::Mutex};
 use tauri::{
     menu::{Menu, MenuItem},
@@ -243,6 +245,55 @@ fn set_seed_rule(store: State<Store>, rule: String) -> Result<Settings, String> 
 }
 
 #[tauri::command]
+fn news_list(app: AppHandle) -> Result<Vec<Article>, String> {
+    news::list(&app)
+}
+
+#[tauri::command]
+async fn news_image(app: AppHandle, id: i64) -> Result<Option<String>, String> {
+    app.state::<News>().image(&app, id).await
+}
+
+#[tauri::command]
+fn news_mark_read(db: State<Db>, ids: Vec<i64>) -> Result<(), String> {
+    db.mark_read(&ids).map_err(text)
+}
+
+#[tauri::command]
+fn news_mark_all_read(db: State<Db>) -> Result<(), String> {
+    db.mark_all_read().map_err(text)
+}
+
+#[tauri::command]
+fn news_refresh(news: State<News>) {
+    news.wake();
+}
+
+#[tauri::command]
+async fn check_news_feed(app: AppHandle, url: String) -> Result<String, String> {
+    app.state::<News>().check(url.trim()).await
+}
+
+/// Articles from a feed that's no longer followed go with it.
+#[tauri::command]
+fn set_news_feeds(app: AppHandle, store: State<Store>, db: State<Db>, feeds: Vec<NewsFeed>) -> Result<Settings, String> {
+    let before = store.get().news_feeds;
+    let settings = store.update(|s| s.news_feeds = feeds)?;
+    for gone in before.iter().filter(|old| !settings.news_feeds.iter().any(|feed| feed.name == old.name)) {
+        for image in db.drop_source(&gone.name).map_err(text)? {
+            let _ = std::fs::remove_file(image);
+        }
+    }
+    app.state::<News>().wake();
+    Ok(settings)
+}
+
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    news::open_url(&url)
+}
+
+#[tauri::command]
 async fn search_metadata(app: AppHandle, query: String) -> Result<Vec<Match>, String> {
     app.state::<Metadata>().search(&app, &query).await
 }
@@ -376,6 +427,8 @@ pub fn run() {
             Installer::start_worker(handle);
             app.manage(Metadata::default());
             metadata::start_worker(handle);
+            app.manage(News::default());
+            news::start_worker(handle);
             app.manage(Mover::default());
             app.manage(Saves::default());
             app.manage(Seeder::default());
@@ -393,6 +446,14 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             engine_snapshot,
+            news_list,
+            news_image,
+            news_mark_read,
+            news_mark_all_read,
+            news_refresh,
+            check_news_feed,
+            set_news_feeds,
+            open_url,
             add_magnet,
             add_torrent_file,
             pause,
